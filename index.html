@@ -1968,7 +1968,6 @@
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="piPacks" style="color:#3498db;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="piCards" style="color:#2ecc71;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏱️ Tempo jogado</span><strong id="piTime" style="color:#e67e22;">0min</strong></div>
-        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:13px;"><span>Próximo nível em</span><strong id="piNext" style="color:#9b59b6;">60s</strong></div>
         <button onclick="closePlayerInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
       </div>
     </div>
@@ -1976,9 +1975,42 @@
         <button id="btnGame" class="nav-btn active" onclick="showPage('game')">🎮 Jogo</button>
         <button id="btnQuests" class="nav-btn" onclick="showPage('quests'); renderQuests();">🎯 Missões</button>
         <button id="btnIndex" class="nav-btn" onclick="showPage('index')">📖 Index</button>
+        <button id="btnLobby2" class="nav-btn" onclick="showLobby2()" title="Mais opções" style="background:linear-gradient(45deg,#34495e,#2c3e50);color:white;border:1px solid #7f8c8d;font-weight:900;">❯</button>
+    </nav>
+    <nav id="gameNav2" style="margin-top: 14px; display:none; position: relative; z-index: 3000;">
+        <button id="btnLobby1" class="nav-btn" onclick="showLobby1()" title="Voltar" style="background:linear-gradient(45deg,#34495e,#2c3e50);color:white;border:1px solid #7f8c8d;font-weight:900;">❮</button>
         <button id="btnMultiplayer" class="nav-btn" onclick="openMultiplayer()">⚔️ Batalha</button>
         <button id="btnTrade" class="nav-btn" onclick="openTrade()" style="background:linear-gradient(45deg,#00695c,#00897b);color:white;border:1px solid #00e676;">🔄 Trade</button>
     </nav>
+
+    <!-- Área de Amigos (segundo lobby) -->
+    <div id="friendsPanel" style="display:none;max-width:480px;margin:16px auto 0;background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid #f1c40f;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.5);position:relative;z-index:2900;">
+        <h2 style="color:gold;text-align:center;margin:0 0 14px;font-size:20px;text-shadow:0 0 12px rgba(255,215,0,0.4);">👥 Amigos</h2>
+        <div style="display:flex;gap:8px;margin-bottom:14px;">
+            <input id="friendNameInput" type="text" maxlength="15" placeholder="Nome do jogador..." style="flex:1;padding:10px;border-radius:8px;border:1px solid #555;background:rgba(0,0,0,0.4);color:#fff;font-size:14px;" onkeypress="if(event.key==='Enter')addFriend()">
+            <button onclick="addFriend()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:8px;padding:0 18px;font-weight:bold;cursor:pointer;font-size:14px;">Adicionar</button>
+        </div>
+        <div id="friendRequestsWrap" style="display:none;margin-bottom:14px;">
+            <h3 style="color:#f1c40f;font-size:14px;margin:0 0 8px;text-align:center;">📨 Pedidos de amizade</h3>
+            <div id="friendRequestsList"></div>
+        </div>
+        <h3 style="color:#aaa;font-size:13px;margin:0 0 8px;text-align:center;text-transform:uppercase;letter-spacing:1px;">Meus amigos</h3>
+        <div id="friendsList"></div>
+    </div>
+
+    <!-- Modal de informações do amigo -->
+    <div id="friendInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeFriendInfoModal()">
+      <div style="background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid gold;border-radius:18px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(255,215,0,0.3);">
+        <div style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
+        <h2 style="color:gold;margin:0 0 6px;font-size:24px;" id="fiName">Pirata</h2>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;color:#f1c40f;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;margin-bottom:18px;">⭐ Nível <span id="fiLevel">1</span></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="fiPacks" style="color:#3498db;">0</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="fiCards" style="color:#2ecc71;">0</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:14px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏱️ Tempo jogado</span><strong id="fiTime" style="color:#e67e22;">0min</strong></div>
+        <button onclick="removeFriendFromModal()" style="background:linear-gradient(45deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:10px;padding:10px 20px;font-size:14px;font-weight:bold;cursor:pointer;width:100%;margin-bottom:8px;">🗑️ Remover amigo</button>
+        <button onclick="closeFriendInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
+      </div>
+    </div>
 
     <!-- Wrapper sticky: só o dinheiro (fica fixo ao rolar) -->
     <div id="moneyStatsWrapper" style="display:none;">
@@ -2651,6 +2683,30 @@ function showPage(pageName){
     } 
 }
 
+function showLobby2(){
+    playClick();
+    // Esconde todas as páginas do jogo (sem girar cartas, inventário, etc.)
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    const wrapper = document.getElementById('moneyStatsWrapper');
+    const statsWrapper = document.getElementById('statsDisplayWrapper');
+    if(wrapper) wrapper.style.display = 'none';
+    if(statsWrapper) statsWrapper.style.display = 'none';
+    document.getElementById('gameNav').style.display = 'none';
+    document.getElementById('gameNav2').style.display = 'block';
+    const fp = document.getElementById('friendsPanel');
+    if(fp) fp.style.display = 'block';
+    renderFriends();
+}
+
+function showLobby1(){
+    playClick();
+    document.getElementById('gameNav2').style.display = 'none';
+    const fp = document.getElementById('friendsPanel');
+    if(fp) fp.style.display = 'none';
+    document.getElementById('gameNav').style.display = 'block';
+    showPage('game');
+}
+
 function calculateLuckMultiplier() {
     let luckMultiplier = 0.75;
     const rarities = ["common", "uncommon", "rare", "epic", "legendary", "mythic", "god"];
@@ -2831,7 +2887,9 @@ function checkPlayerName() {
     return true;
 }
 
-function savePlayerName() {
+function nameKey(n){ return (n||'').toLowerCase().replace(/[.#$\[\]\/]/g,'_'); }
+
+async function savePlayerName() {
     const input = document.getElementById('playerNameInput');
     const name = input.value.trim();
     if (name.length < 2) {
@@ -2842,14 +2900,47 @@ function savePlayerName() {
         alert('Nome muito longo! Máximo 15 caracteres.');
         return;
     }
+    const btn = document.querySelector('#nameScreen button');
+    // Verifica se o nome já está em uso (não pode haver nomes repetidos)
+    if (window.firebaseReady && window.firebaseDB) {
+        try {
+            if (btn) { btn.disabled = true; btn.textContent = 'Verificando...'; }
+            const snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'registeredNames/' + nameKey(name)));
+            if (snap && snap.exists()) {
+                alert('❌ Esse nome já está em uso! Escolha outro.');
+                if (btn) { btn.disabled = false; btn.textContent = 'ZARPAR! ⚓'; }
+                return;
+            }
+            await window.firebaseSet(window.firebaseRef(window.firebaseDB, 'registeredNames/' + nameKey(name)), { name: name, createdAt: Date.now() });
+        } catch(e) {
+            console.warn('Falha ao verificar nome:', e);
+        }
+        if (btn) { btn.disabled = false; btn.textContent = 'ZARPAR! ⚓'; }
+    }
     playerName = name;
     localStorage.setItem('playerName', playerName);
     document.getElementById('nameScreen').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
     document.getElementById('displayName').textContent = playerName;
     document.getElementById('playerNameDisplay').style.display = 'block';
+    updateMyProfile();
     playClick();
     soundQuestComplete();
+}
+
+// Registra/atualiza o perfil do jogador no Firebase (para amigos verem)
+function updateMyProfile(){
+    if (!window.firebaseReady || !window.firebaseDB || !playerName) return;
+    try {
+        const level = (window.__getPlayerLevel ? window.__getPlayerLevel() : 1);
+        const time = (window.__getPlayerPlayTime ? window.__getPlayerPlayTime() : 0);
+        const packs = (typeof stats !== 'undefined' && stats && stats.packs) ? stats.packs : 0;
+        const cards = (typeof unlockedCards !== 'undefined' && unlockedCards && unlockedCards.size) ? unlockedCards.size : 0;
+        window.firebaseSet(window.firebaseRef(window.firebaseDB, 'profiles/' + nameKey(playerName)), {
+            name: playerName, level, time, packs, cards, lastSeen: Date.now()
+        });
+        window.firebaseSet(window.firebaseRef(window.firebaseDB, 'registeredNames/' + nameKey(playerName)), { name: playerName, createdAt: Date.now() });
+    } catch(e){}
 }
 
 // Verifica nome ao carregar
@@ -2861,6 +2952,7 @@ window.addEventListener('load', function() {
         } else if (playerName) {
             document.getElementById('displayName').textContent = playerName;
             document.getElementById('playerNameDisplay').style.display = 'block';
+            setTimeout(updateMyProfile, 2000);
         }
     }, 1400);
 });
@@ -3246,6 +3338,8 @@ function openMultiplayer() {
     document.getElementById('lobbyScreen').style.display = 'none';
     document.getElementById('battleScreen').style.display = 'none';
     document.getElementById('gameNav').style.display = 'none';
+    document.getElementById('gameNav2').style.display = 'none';
+    { const fp = document.getElementById('friendsPanel'); if(fp) fp.style.display = 'none'; }
     // Esconde o wrapper de dinheiro
     const wrapper = document.getElementById('moneyStatsWrapper');
     if (wrapper) wrapper.style.display = 'none';
@@ -3263,9 +3357,7 @@ function closeMultiplayer() {
     chatBox.style.display = '';
     const toggleBtn = document.getElementById('chatToggleBtn');
     toggleBtn.style.display = 'none';
-    document.getElementById('gameNav').style.display = 'block';
-    // Volta para a página do jogo
-    showPage('game');
+    showLobby2();
     cleanupOnlinePresence();
 }
 
@@ -4240,6 +4332,8 @@ function openTrade() {
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     document.getElementById('tradeScreen').classList.add('trade-active');
     document.getElementById('gameNav').style.display = 'none';
+    document.getElementById('gameNav2').style.display = 'none';
+    { const fp = document.getElementById('friendsPanel'); if(fp) fp.style.display = 'none'; }
     const wrapper = document.getElementById('moneyStatsWrapper');
     if (wrapper) wrapper.style.display = 'none';
     const statsWrapperTrade = document.getElementById('statsDisplayWrapper');
@@ -4252,10 +4346,9 @@ function closeTrade() {
     if (tradeRoom) { cancelActiveTrade(); return; }
     playClick();
     document.getElementById('tradeScreen').classList.remove('trade-active');
-    document.getElementById('gameNav').style.display = 'block';
     _cleanupTradeListeners();
     _resetTradeState();
-    showPage('game');
+    showLobby2();
 }
 
 function _resetTradeState() {
@@ -4893,8 +4986,7 @@ async function cancelActiveTrade() {
     _cleanupTradeListeners();
     _resetTradeState();
     document.getElementById('tradeScreen').classList.remove('trade-active');
-    document.getElementById('gameNav').style.display = 'block';
-    showPage('game');
+    showLobby2();
     _setupTradeOnlinePresence();
 }
 
@@ -5643,14 +5735,326 @@ function openPlayerInfoModal(){
   document.getElementById('piPacks').textContent = packs;
   document.getElementById('piCards').textContent = cards;
   document.getElementById('piTime').textContent = timeStr;
-  document.getElementById('piNext').textContent = nextIn + 's';
+  const piNextEl = document.getElementById('piNext');
+  if (piNextEl) piNextEl.textContent = nextIn + 's';
   m.style.display = 'flex';
 }
 function closePlayerInfoModal(){
   const m = document.getElementById('playerInfoModal');
   if (m) m.style.display = 'none';
 }
+
+
+// ===================== Sistema de Amigos (com pedidos via Firebase) =====================
+let friends = []; // array de nomes reais (amigos confirmados)
+let pendingFriendRequests = []; // {fromKey, fromName, timestamp}
+let __friendModalName = '';
+let __friendsListener = null;
+let __friendReqListener = null;
+let __friendRequestsStarted = false;
+
+function saveFriends(){ try{ localStorage.setItem('friends', JSON.stringify(friends)); }catch(e){} }
+try { friends = JSON.parse(localStorage.getItem('friends') || '[]'); } catch(e){ friends = []; }
+
+// Envia PEDIDO de amizade (não adiciona direto)
+async function addFriend(){
+    const input = document.getElementById('friendNameInput');
+    if(!input) return;
+    const name = input.value.trim();
+    if(name.length < 2){ alert('Digite um nome válido.'); return; }
+    if(!playerName){ alert('Defina seu nome primeiro.'); return; }
+    if(nameKey(name) === nameKey(playerName)){ alert('Você não pode adicionar a si mesmo!'); return; }
+    if(friends.some(f => nameKey(f) === nameKey(name))){ alert('Esse jogador já é seu amigo.'); return; }
+    if(!window.firebaseReady || !window.firebaseDB){ alert('Sem conexão. Tente novamente.'); return; }
+    try {
+        const snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'registeredNames/' + nameKey(name)));
+        if(!snap || !snap.exists()){ alert('❌ Não existe nenhum jogador com esse nome.'); return; }
+        const realName = (snap.val() && snap.val().name) ? snap.val().name : name;
+        const targetKey = nameKey(realName);
+        const myKey = nameKey(playerName);
+
+        // Já tem pedido pendente vindo dele? Aceita direto.
+        const reverseSnap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'friendRequests/' + myKey + '/' + targetKey));
+        if(reverseSnap && reverseSnap.exists()){
+            await _confirmFriendship(realName, targetKey);
+            input.value = '';
+            alert('✅ Vocês agora são amigos!');
+            return;
+        }
+
+        // Verifica pedido já enviado
+        const existing = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'friendRequests/' + targetKey + '/' + myKey));
+        if(existing && existing.exists()){ alert('⏳ Você já enviou um pedido para esse jogador.'); return; }
+
+        await window.firebaseSet(
+            window.firebaseRef(window.firebaseDB, 'friendRequests/' + targetKey + '/' + myKey),
+            { from: playerName, timestamp: Date.now() }
+        );
+        input.value = '';
+        playClick && playClick();
+        alert('📨 Pedido de amizade enviado para ' + realName + '!');
+    } catch(e){
+        console.warn(e);
+        alert('Erro ao enviar pedido. Tente novamente.');
+    }
+}
+
+// Cria amizade mútua no Firebase + local
+async function _confirmFriendship(otherName, otherKey){
+    const myKey = nameKey(playerName);
+    try {
+        await window.firebaseSet(
+            window.firebaseRef(window.firebaseDB, 'friends/' + myKey + '/' + otherKey),
+            { name: otherName, since: Date.now() }
+        );
+        await window.firebaseSet(
+            window.firebaseRef(window.firebaseDB, 'friends/' + otherKey + '/' + myKey),
+            { name: playerName, since: Date.now() }
+        );
+        // Remove pedidos de ambos os lados
+        try { await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'friendRequests/' + myKey + '/' + otherKey)); } catch(e){}
+        try { await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'friendRequests/' + otherKey + '/' + myKey)); } catch(e){}
+    } catch(e){ console.warn(e); }
+}
+
+async function acceptFriendRequest(fromKey, fromName){
+    if(!playerName || !window.firebaseDB) return;
+    playClick && playClick();
+    await _confirmFriendship(fromName, fromKey);
+    // listeners atualizam UI automaticamente
+}
+
+async function declineFriendRequest(fromKey){
+    if(!playerName || !window.firebaseDB) return;
+    playClick && playClick();
+    try {
+        await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'friendRequests/' + nameKey(playerName) + '/' + fromKey));
+    } catch(e){ console.warn(e); }
+}
+
+async function removeFriend(name){
+    const otherKey = nameKey(name);
+    const myKey = nameKey(playerName);
+    if(window.firebaseDB){
+        try { await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'friends/' + myKey + '/' + otherKey)); } catch(e){}
+        try { await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'friends/' + otherKey + '/' + myKey)); } catch(e){}
+    }
+    friends = friends.filter(f => nameKey(f) !== otherKey);
+    saveFriends();
+    renderFriends();
+}
+
+function renderFriendRequests(){
+    const wrap = document.getElementById('friendRequestsWrap');
+    const list = document.getElementById('friendRequestsList');
+    if(!wrap || !list) return;
+    if(pendingFriendRequests.length === 0){
+        wrap.style.display = 'none';
+        list.innerHTML = '';
+        return;
+    }
+    wrap.style.display = 'block';
+    list.innerHTML = '';
+    pendingFriendRequests.forEach(req => {
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;background:rgba(241,196,15,0.08);padding:10px 12px;border-radius:8px;border:1px solid #f1c40f;margin-bottom:8px;gap:8px;';
+        const safeName = String(req.fromName).replace(/'/g,"\\'");
+        const safeKey = String(req.fromKey).replace(/'/g,"\\'");
+        div.innerHTML = `
+            <span style="color:#fff;font-size:14px;flex:1;overflow:hidden;text-overflow:ellipsis;">👤 <strong>${req.fromName}</strong> quer ser seu amigo</span>
+            <button onclick="acceptFriendRequest('${safeKey}','${safeName}')" title="Aceitar" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:6px;width:34px;height:34px;font-size:16px;cursor:pointer;font-weight:bold;">✓</button>
+            <button onclick="declineFriendRequest('${safeKey}')" title="Recusar" style="background:linear-gradient(45deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:6px;width:34px;height:34px;font-size:16px;cursor:pointer;font-weight:bold;">✕</button>
+        `;
+        list.appendChild(div);
+    });
+}
+
+function renderFriends(){
+    const list = document.getElementById('friendsList');
+    if(!list) return;
+    if(friends.length === 0){
+        list.innerHTML = '<p style="color:#888;text-align:center;padding:14px;">Você ainda não tem amigos. Envie um pedido!</p>';
+        return;
+    }
+    list.innerHTML = '';
+    friends.forEach(name => {
+        const safeName = String(name).replace(/'/g,"\\'");
+        const div = document.createElement('div');
+        div.style.cssText = 'display:flex;flex-direction:column;background:rgba(255,255,255,0.05);padding:10px 12px;border-radius:8px;border:1px solid #555;margin-bottom:8px;transition:all .2s;';
+        div.innerHTML = `
+            <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;margin-bottom:8px;" onclick="openFriendInfo('${safeName}')">
+                <span style="color:#fff;display:flex;align-items:center;gap:8px;font-weight:bold;">👤 ${name}</span>
+                <span style="color:gold;font-size:12px;">ver perfil ▸</span>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button onclick="friendBattleInvite('${safeName}')" style="flex:1;background:linear-gradient(45deg,#e74c3c,#c0392b);color:#fff;border:1px solid #ffd700;border-radius:6px;padding:8px;font-weight:bold;cursor:pointer;font-size:13px;">⚔️ Batalha</button>
+                <button onclick="friendTradeInvite('${safeName}')" style="flex:1;background:linear-gradient(45deg,#00897b,#00695c);color:#fff;border:1px solid #00e676;border-radius:6px;padding:8px;font-weight:bold;cursor:pointer;font-size:13px;">🔄 Trade</button>
+            </div>
+        `;
+        list.appendChild(div);
+    });
+}
+
+// Convidar amigo para batalha (a partir da lista de amigos, em qualquer tela)
+async function friendBattleInvite(targetName){
+    if(!playerName){ alert('Defina seu nome primeiro.'); return; }
+    if(!window.firebaseReady){ alert('Sem conexão.'); return; }
+    if(typeof currentRoom !== 'undefined' && currentRoom){ alert('Você já está em uma batalha.'); return; }
+    playClick && playClick();
+    // Confere se amigo está online
+    try {
+        const snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'onlinePlayers/' + targetName));
+        const d = snap.exists() ? snap.val() : null;
+        if(!d || !d.timestamp || (Date.now() - d.timestamp) >= 90000){
+            alert('❌ ' + targetName + ' não está online no momento.');
+            return;
+        }
+    } catch(e){}
+    try {
+        if(document.getElementById('multiplayerScreen') && document.getElementById('multiplayerScreen').style.display==='none'){
+            openMultiplayer();
+        }
+    } catch(e){}
+    try { await challengePlayer(targetName); } catch(e){ console.error(e); }
+}
+
+// Convidar amigo para trade
+async function friendTradeInvite(targetName){
+    if(!playerName){ alert('Defina seu nome primeiro.'); return; }
+    if(!window.firebaseReady){ alert('Sem conexão.'); return; }
+    if(typeof tradeRoom !== 'undefined' && tradeRoom){ alert('Você já está em um trade.'); return; }
+    playClick && playClick();
+    try {
+        const snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'onlinePlayers/' + targetName));
+        const d = snap.exists() ? snap.val() : null;
+        if(!d || !d.timestamp || (Date.now() - d.timestamp) >= 90000){
+            alert('❌ ' + targetName + ' não está online no momento.');
+            return;
+        }
+        const invSnap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'tradeInvites/' + targetName));
+        if(invSnap.exists()){ alert('⚠️ Já existe um convite pendente para esse jogador.'); return; }
+    } catch(e){}
+    try {
+        const ts = document.getElementById('tradeScreen');
+        if(ts && !ts.classList.contains('trade-active') && typeof openTrade === 'function'){
+            try { openTrade(); } catch(e){}
+        }
+    } catch(e){}
+    try { await proposeTrade(targetName); } catch(e){ console.error(e); }
+}
+
+// Listeners globais (pedidos + amigos confirmados)
+function startFriendsRealtime(){
+    if(__friendRequestsStarted) return;
+    if(!playerName || !window.firebaseDB) return;
+    __friendRequestsStarted = true;
+    const myKey = nameKey(playerName);
+
+    // Amigos confirmados
+    const fRef = window.firebaseRef(window.firebaseDB, 'friends/' + myKey);
+    __friendsListener = window.firebaseOnValue(fRef, (snap)=>{
+        const data = snap.val() || {};
+        friends = Object.values(data).map(v => (v && v.name) ? v.name : '').filter(Boolean);
+        saveFriends();
+        renderFriends();
+    });
+
+    // Pedidos recebidos
+    const rRef = window.firebaseRef(window.firebaseDB, 'friendRequests/' + myKey);
+    __friendReqListener = window.firebaseOnValue(rRef, (snap)=>{
+        const data = snap.val() || {};
+        const prevCount = pendingFriendRequests.length;
+        pendingFriendRequests = Object.keys(data).map(k => ({
+            fromKey: k,
+            fromName: (data[k] && data[k].from) ? data[k].from : k,
+            timestamp: (data[k] && data[k].timestamp) || 0
+        }));
+        renderFriendRequests();
+        // Notifica novo pedido
+        if(pendingFriendRequests.length > prevCount){
+            const latest = pendingFriendRequests[pendingFriendRequests.length-1];
+            try { playClick && playClick(); } catch(e){}
+            try { if(navigator.vibrate) navigator.vibrate([100, 50, 100]); } catch(e){}
+            showFriendRequestToast(latest.fromName);
+        }
+    });
+}
+
+function showFriendRequestToast(fromName){
+    let toast = document.getElementById('friendRequestToast');
+    if(!toast){
+        toast = document.createElement('div');
+        toast.id = 'friendRequestToast';
+        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:linear-gradient(135deg,#1a1a2e,#0f0f1e);border:2px solid #f1c40f;color:#fff;padding:14px 18px;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.6),0 0 18px rgba(241,196,15,0.4);z-index:99999;display:flex;align-items:center;gap:12px;font-size:14px;max-width:300px;transform:translateX(120%);transition:transform .4s ease;';
+        document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<span style="font-size:22px;">📨</span><span><strong>${fromName}</strong> enviou um pedido de amizade!</span>`;
+    requestAnimationFrame(()=>{ toast.style.transform='translateX(0)'; });
+    clearTimeout(window.__friendReqToastT);
+    window.__friendReqToastT = setTimeout(()=>{ toast.style.transform='translateX(120%)'; }, 6000);
+}
+
+// Boot: tenta iniciar listeners quando playerName estiver pronto
+(function bootFriends(){
+    function tryStart(){
+        if(playerName && window.firebaseDB){ startFriendsRealtime(); }
+        else { setTimeout(tryStart, 1500); }
+    }
+    window.addEventListener('load', ()=>setTimeout(tryStart, 2200));
+    const _origSavePN = window.savePlayerName;
+    if(typeof _origSavePN === 'function'){
+        window.savePlayerName = function(){
+            const r = _origSavePN.apply(this, arguments);
+            setTimeout(startFriendsRealtime, 600);
+            return r;
+        };
+    }
+})();
+
+async function openFriendInfo(name){
+    __friendModalName = name;
+    const modal = document.getElementById('friendInfoModal');
+    if(!modal) return;
+    document.getElementById('fiName').textContent = name;
+    document.getElementById('fiLevel').textContent = '...';
+    document.getElementById('fiPacks').textContent = '...';
+    document.getElementById('fiCards').textContent = '...';
+    document.getElementById('fiTime').textContent = '...';
+    modal.style.display = 'flex';
+    playClick && playClick();
+    if(window.firebaseReady && window.firebaseDB){
+        try {
+            const snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'profiles/' + nameKey(name)));
+            const p = (snap && snap.exists()) ? snap.val() : null;
+            if(p){
+                const time = p.time || 0;
+                const mins = Math.floor(time/60), secs = time%60;
+                const timeStr = mins>=60 ? (Math.floor(mins/60)+'h '+(mins%60)+'min') : (mins+'min '+secs+'s');
+                document.getElementById('fiLevel').textContent = p.level || 1;
+                document.getElementById('fiPacks').textContent = p.packs || 0;
+                document.getElementById('fiCards').textContent = p.cards || 0;
+                document.getElementById('fiTime').textContent = timeStr;
+            } else {
+                document.getElementById('fiLevel').textContent = '?';
+                document.getElementById('fiPacks').textContent = '?';
+                document.getElementById('fiCards').textContent = '?';
+                document.getElementById('fiTime').textContent = 'Sem dados';
+            }
+        } catch(e){ console.warn(e); }
+    }
+}
+
+function closeFriendInfoModal(){
+    const m = document.getElementById('friendInfoModal');
+    if(m) m.style.display = 'none';
+}
+
+function removeFriendFromModal(){
+    if(__friendModalName){ removeFriend(__friendModalName); }
+    closeFriendInfoModal();
+}
 </script>
+
 </body>
 </html>
 
