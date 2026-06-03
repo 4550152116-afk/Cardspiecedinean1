@@ -1,4 +1,4 @@
-<meta name='viewport' content='width=device-width, initial-scale=1'/><script>// Playables SDK v1.0.0
+<meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover'/><script>// Playables SDK v1.0.0
 // Game lifecycle bridge: rAF-based game-ready detection + event communication
 (function() {
   'use strict';
@@ -220,7 +220,7 @@
   }
 </script>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=480, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <style id="lock-zoom-style">
   html, body { touch-action: manipulation !important; -ms-touch-action: manipulation !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; overscroll-behavior: none; }
   * { -webkit-touch-callout: none; }
@@ -1623,6 +1623,61 @@
     .admin-status { font-size: 12px; color: #888; margin-top: 4px; }
     .admin-status.ok { color: #2ecc71; }
     .admin-status.err { color: #e74c3c; }
+
+
+/* --- RESOLUCAO FIXA ESTILO CLASH ROYALE --- */
+:root {
+    --fixed-game-width: 720px;
+    --fixed-game-height: 1395px;
+}
+html {
+    width: 100%;
+    height: 100%;
+    overflow: hidden !important;
+    background: #05070e !important;
+    zoom: 1 !important;
+}
+body {
+    position: fixed !important;
+    inset: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    background: #05070e !important;
+    overscroll-behavior: none !important;
+}
+#fixedGameViewport {
+    width: var(--fixed-game-width);
+    height: var(--fixed-game-height);
+    min-width: var(--fixed-game-width);
+    min-height: var(--fixed-game-height);
+    position: relative;
+    overflow-x: hidden;
+    overflow-y: auto;
+    transform-origin: center center;
+    background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') no-repeat center center;
+    background-size: cover;
+    color: #fff;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    box-shadow: 0 0 0 9999px #05070e;
+    isolation: isolate;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+#fixedGameViewport::-webkit-scrollbar {
+    display: none;
+}
+#fixedGameViewport .page {
+    min-height: calc(var(--fixed-game-height) - 250px);
+}
+
 </style>
 
 </head>
@@ -6081,6 +6136,48 @@ function removeFriendFromModal(){
     if(__friendModalName){ removeFriend(__friendModalName); }
     closeFriendInfoModal();
 }
+</script>
+
+
+<script>
+(function(){
+    'use strict';
+    var GAME_WIDTH = 720;
+    var GAME_HEIGHT = 1280;
+
+    function installFixedGameViewport(){
+        if (document.getElementById('fixedGameViewport')) return;
+
+        var frame = document.createElement('div');
+        frame.id = 'fixedGameViewport';
+
+        var nodes = Array.prototype.slice.call(document.body.childNodes);
+        nodes.forEach(function(node){ frame.appendChild(node); });
+        document.body.appendChild(frame);
+
+        function fit(){
+            var viewport = window.visualViewport;
+            var availableWidth = viewport ? viewport.width : (window.innerWidth || document.documentElement.clientWidth);
+            var availableHeight = viewport ? viewport.height : (window.innerHeight || document.documentElement.clientHeight);
+            var scale = Math.min(availableWidth / GAME_WIDTH, availableHeight / GAME_HEIGHT);
+            frame.style.transform = 'scale(' + scale + ')';
+        }
+
+        fit();
+        window.addEventListener('resize', fit, { passive: true });
+        window.addEventListener('orientationchange', fit, { passive: true });
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', fit, { passive: true });
+            window.visualViewport.addEventListener('scroll', fit, { passive: true });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', installFixedGameViewport, { once: true });
+    } else {
+        installFixedGameViewport();
+    }
+})();
 </script>
 
 </body>
