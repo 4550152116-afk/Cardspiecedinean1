@@ -1594,7 +1594,8 @@
     }
     #updateBanner button:hover { transform: scale(1.05); background: #fff5f5; }
 
-    #adminLoginSection { margin: 12px 0; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid rgba(255,215,0,0.2); }
+    #adminLoginSection { display: none; margin: 12px 0; padding: 12px; background: rgba(0,0,0,0.3); border-radius: 10px; border: 1px solid rgba(255,215,0,0.2); }
+    #adminLoginSection.unlocked { display: block; }
     #adminPanel { display: none; margin-top: 12px; padding: 12px; background: rgba(231,76,60,0.15); border-radius: 10px; border: 1px solid rgba(231,76,60,0.4); }
     #adminPanel.visible { display: block; }
     .admin-input {
@@ -1887,7 +1888,8 @@
         <div class="name-container">
             <h2>🏴‍☠️ Bem-vindo à Grand Line!</h2>
             <p style="color: #aaa; margin-bottom: 20px;">Escolha seu nome de pirata</p>
-            <input type="text" id="playerNameInput" placeholder="Seu nome..." maxlength="15" onkeypress="if(event.key==='Enter') savePlayerName()">
+            <input type="text" id="playerNameInput" placeholder="Seu nome..." maxlength="15" oninput="document.getElementById('nameCharCount').textContent=this.value.length+'/15'" onkeypress="if(event.key==='Enter') savePlayerName()">
+            <div id="nameCharCount" style="font-size:12px;color:#888;margin-top:6px;">0/15</div>
             <button onclick="savePlayerName()">ZARPAR! ⚓</button>
             <p style="font-size: 19px; color: #666; margin-top: 15px;">Seu nome ficará salvo</p>
         </div>
@@ -1957,7 +1959,19 @@
         <div class="credits">Dinean J.A.Alonso</div>
     </div>
 
-    <div id="playerNameDisplay">👤 <span id="displayName">Pirata</span></div>
+    <div id="playerNameDisplay" onclick="openPlayerInfoModal()" style="cursor:pointer;">👤 <span id="displayName">Pirata</span><span id="playerLevelBadge" title="Nível da conta" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);vertical-align:middle;">1</span></div>
+    <div id="playerInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closePlayerInfoModal()">
+      <div style="background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid gold;border-radius:18px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(255,215,0,0.3);">
+        <div style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
+        <h2 style="color:gold;margin:0 0 6px;font-size:24px;" id="piName">Pirata</h2>
+        <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;color:#f1c40f;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;margin-bottom:18px;">⭐ Nível <span id="piLevel">1</span></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="piPacks" style="color:#3498db;">0</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="piCards" style="color:#2ecc71;">0</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏱️ Tempo jogado</span><strong id="piTime" style="color:#e67e22;">0min</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:18px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:13px;"><span>Próximo nível em</span><strong id="piNext" style="color:#9b59b6;">60s</strong></div>
+        <button onclick="closePlayerInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
+      </div>
+    </div>
     <nav id="gameNav" style="margin-top: 14px; display:none; position: relative; z-index: 3000;">
         <button id="btnGame" class="nav-btn active" onclick="showPage('game')">🎮 Jogo</button>
         <button id="btnQuests" class="nav-btn" onclick="showPage('quests'); renderQuests();">🎯 Missões</button>
@@ -2166,6 +2180,14 @@ function redeemCode() {
         code = code.toUpperCase().trim();
         if (usedCodes.has(code)) { gameAlert("❌ Este código já foi resgatado anteriormente!"); return; }
         let success = false;
+        if (code === "ADMDINEAN26") {
+            const sec = document.getElementById('adminLoginSection');
+            if (sec) sec.classList.add('unlocked');
+            localStorage.setItem('adminSectionUnlocked','1');
+            gameAlert("🔓 Área de atualização do jogo desbloqueada!");
+            usedCodes.add(code); saveGame();
+            return;
+        }
         if (code === "D1N34NL1ND0") {
             money = Infinity; baseIncome = 999999999;
             gameAlert("💰 CÓDIGO ATIVADO: DINHEIRO INFINITO LIBERADO!");
@@ -5346,15 +5368,15 @@ window.alert = showCustomAlert;
     div.innerHTML = `
       <div class="ab-hp opp">❤️ Oponente: <span id="abOppHp">5</span>/5</div>
       <div class="ab-row" id="abOppRow"></div>
-      <div class="ab-next-wrap" style="text-align:center;margin:8px 0;display:flex;flex-direction:column;align-items:center;gap:6px;">
+      <div class="ab-row" id="abMyRow"></div>
+      <div class="ab-hp me">❤️ Você: <span id="abMyHp">5</span>/5</div>
+      <div class="ab-next-wrap" style="text-align:center;margin:12px 0 4px;display:flex;flex-direction:column;align-items:center;gap:6px;">
         <button id="abNextRoundBtn" style="display:none;padding:12px 28px;font-size:15px;font-weight:800;border:none;border-radius:10px;cursor:pointer;background:linear-gradient(45deg,#27ae60,#1e8449);color:#fff;box-shadow:0 4px 14px rgba(0,0,0,0.5);">▶️ Próxima Rodada</button>
         <div id="abNextRoundHint" style="display:none;color:#ffd966;font-size:13px;font-weight:700;">Aguardando o oponente…</div>
         <div id="abReadyStatus" style="display:none;color:#ccc;font-size:12px;">
           <span id="abMeReady">⬜ Você</span> &nbsp;·&nbsp; <span id="abOppReady">⬜ Oponente</span>
         </div>
       </div>
-      <div class="ab-row" id="abMyRow"></div>
-      <div class="ab-hp me">❤️ Você: <span id="abMyHp">5</span>/5</div>
     `;
     screen.appendChild(div);
     const btn = div.querySelector('#abNextRoundBtn');
@@ -5566,6 +5588,68 @@ window.alert = showCustomAlert;
     try { render(room); } catch(e) { console.warn('autoBattle render', e); }
   };
 })();
+</script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function(){
+  if (localStorage.getItem('adminSectionUnlocked') === '1') {
+    var sec = document.getElementById('adminLoginSection');
+    if (sec) sec.classList.add('unlocked');
+  }
+});
+</script>
+
+<script>
+/* ========= Sistema de Nível por Tempo Jogado ========= */
+(function(){
+  const KEY_TIME = 'playerPlayTimeSec';
+  const SEC_PER_LEVEL = 60; // 1 min = +1 nível
+  function getPlayTime(){ return parseInt(localStorage.getItem(KEY_TIME)||'0',10)||0; }
+  function setPlayTime(v){ localStorage.setItem(KEY_TIME, String(v)); }
+  function getLevel(){ return 1 + Math.floor(getPlayTime()/SEC_PER_LEVEL); }
+  function updateBadge(){
+    const b = document.getElementById('playerLevelBadge');
+    if (b) b.textContent = getLevel();
+  }
+  window.__getPlayerLevel = getLevel;
+  window.__getPlayerPlayTime = getPlayTime;
+
+  setInterval(function(){
+    // Conta tempo apenas se o jogo já começou (nome definido + tela start escondida ou nav visível)
+    const nav = document.getElementById('gameNav');
+    const visible = nav && nav.style.display !== 'none';
+    if (!visible) return;
+    if (document.hidden) return;
+    setPlayTime(getPlayTime()+1);
+    updateBadge();
+  }, 1000);
+
+  document.addEventListener('DOMContentLoaded', updateBadge);
+  setTimeout(updateBadge, 1500);
+})();
+
+function openPlayerInfoModal(){
+  const m = document.getElementById('playerInfoModal');
+  if (!m) return;
+  const level = (window.__getPlayerLevel ? window.__getPlayerLevel() : 1);
+  const time = (window.__getPlayerPlayTime ? window.__getPlayerPlayTime() : 0);
+  const packs = (typeof stats !== 'undefined' && stats && stats.packs) ? stats.packs : 0;
+  const cards = (typeof unlockedCards !== 'undefined' && unlockedCards && unlockedCards.size) ? unlockedCards.size : 0;
+  const mins = Math.floor(time/60), secs = time%60;
+  const timeStr = mins>=60 ? (Math.floor(mins/60)+'h '+(mins%60)+'min') : (mins+'min '+secs+'s');
+  const nextIn = 60 - (time % 60);
+  document.getElementById('piName').textContent = (typeof playerName!=='undefined' && playerName) ? playerName : 'Pirata';
+  document.getElementById('piLevel').textContent = level;
+  document.getElementById('piPacks').textContent = packs;
+  document.getElementById('piCards').textContent = cards;
+  document.getElementById('piTime').textContent = timeStr;
+  document.getElementById('piNext').textContent = nextIn + 's';
+  m.style.display = 'flex';
+}
+function closePlayerInfoModal(){
+  const m = document.getElementById('playerInfoModal');
+  if (m) m.style.display = 'none';
+}
 </script>
 </body>
 </html>
