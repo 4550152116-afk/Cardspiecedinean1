@@ -243,14 +243,34 @@ async function forceClearBrowserCache() {
 <style id="lock-zoom-style">
   html, body { touch-action: manipulation !important; -ms-touch-action: manipulation !important; -webkit-text-size-adjust: 100% !important; text-size-adjust: 100% !important; overscroll-behavior: none; }
   * { -webkit-touch-callout: none; }
+  /* Inputs precisam responder ao primeiro tap (abrir teclado) */
+  input, textarea, select, [contenteditable="true"] {
+    touch-action: manipulation;
+    -webkit-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
 </style>
 <script>
   (function(){
     // Bloqueia pinch-zoom e duplo toque para zoom no iOS/Android
-    document.addEventListener('gesturestart',  function(e){ e.preventDefault(); }, { passive: false });
-    document.addEventListener('gesturechange', function(e){ e.preventDefault(); }, { passive: false });
-    document.addEventListener('gestureend',    function(e){ e.preventDefault(); }, { passive: false });
-    document.addEventListener('dblclick',      function(e){ e.preventDefault(); }, { passive: false });
+    // Bloqueia apenas pinch real (2+ dedos). NAO interceptar single-tap
+    // pois isso atrasa o foco em <input>/<textarea> no mobile (problema do "2 cliques").
+    function isFormField(t){
+      return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable);
+    }
+    document.addEventListener('gesturestart', function(e){
+      if (isFormField(e.target)) return;
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('gesturechange', function(e){
+      if (isFormField(e.target)) return;
+      e.preventDefault();
+    }, { passive: false });
+    document.addEventListener('gestureend', function(e){
+      if (isFormField(e.target)) return;
+      e.preventDefault();
+    }, { passive: false });
     document.addEventListener('touchmove', function(e){
       if (e.touches && e.touches.length > 1) e.preventDefault();
     }, { passive: false });
@@ -771,7 +791,7 @@ async function forceClearBrowserCache() {
     #multiplayerScreen {
         display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
         background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
-        z-index: 4000; overflow-y: auto; padding: 20px; box-sizing: border-box;
+        z-index: 4000; overflow: hidden; padding: 20px; box-sizing: border-box;
     }
 
     /* ── BATTLE BACKGROUND ── */
@@ -1721,6 +1741,13 @@ async function forceClearBrowserCache() {
   }catch(e){ try{ sessionStorage.removeItem('gameUpdating'); }catch(_){ } }
 })();
 </script>
+
+<style>
+@keyframes lobbySlideInFromRight { from { transform: translateX(40px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+@keyframes lobbySlideInFromLeft  { from { transform: translateX(-40px); opacity:0; } to { transform: translateX(0); opacity:1; } }
+.lobby-anim-in-right { animation: lobbySlideInFromRight .28s ease-out; }
+.lobby-anim-in-left  { animation: lobbySlideInFromLeft  .28s ease-out; }
+</style>
 </head>
 
 <body>
@@ -1765,7 +1792,8 @@ async function forceClearBrowserCache() {
         btnsEl.innerHTML = '';
         if(d.type==='prompt'){
             inputEl.style.display='block'; inputEl.value=d.def||'';
-            setTimeout(()=>inputEl.focus(),60);
+            // Foco SINCRONO para o teclado mobile abrir no primeiro tap
+            try { inputEl.focus({ preventScroll: true }); } catch(e) { try{ inputEl.focus(); }catch(_){} }
         }
         if(d.type==='alert'){
             var b=document.createElement('button'); b.className='gd-btn gd-btn-primary'; b.textContent='OK';
@@ -1818,6 +1846,10 @@ async function forceClearBrowserCache() {
                     <div class="mp-card" onclick="showJoinRoom()">
                         <h3>🔍 Entrar em Sala</h3>
                         <p>Digite o código da sala</p>
+                    </div>
+                    <div class="mp-card" onclick="startBotBattle()" style="border-color:#9b59b6;">
+                        <h3>🤖 Batalha vs Bot</h3>
+                        <p>Lute contra a IA — batalha justa pro seu nível</p>
                     </div>
 
                 </div>
@@ -1996,7 +2028,11 @@ async function forceClearBrowserCache() {
             <p style="color: #aaa; margin-bottom: 20px;">Escolha seu nome de pirata</p>
             <input type="text" id="playerNameInput" placeholder="Seu nome..." maxlength="15" oninput="document.getElementById('nameCharCount').textContent=this.value.length+'/15'" onkeypress="if(event.key==='Enter') savePlayerName()">
             <div id="nameCharCount" style="font-size:12px;color:#888;margin-top:6px;">0/15</div>
-            <button onclick="savePlayerName()">ZARPAR! ⚓</button>
+            <div style="margin-top:18px;text-align:left;">
+                <div style="color:#f1c40f;font-size:14px;font-weight:bold;margin-bottom:8px;text-align:center;letter-spacing:1px;">ESCOLHA SUA FOTO DE PERFIL</div>
+                <div id="avatarPicker" style="display:grid;grid-template-columns:repeat(6,1fr);gap:8px;background:rgba(0,0,0,0.4);padding:10px;border-radius:12px;border:1px solid #444;"></div>
+            </div>
+            <button style="margin-top:14px;" onclick="savePlayerName()">ZARPAR! ⚓</button>
             <p style="font-size: 19px; color: #666; margin-top: 15px;">Seu nome ficará salvo</p>
         </div>
     </div>
@@ -2065,15 +2101,20 @@ async function forceClearBrowserCache() {
         <div class="credits">Dinean J.A.Alonso</div>
     </div>
 
-    <div id="playerNameDisplay" onclick="openPlayerInfoModal()" style="cursor:pointer;">👤 <span id="displayName">Pirata</span><span id="playerLevelBadge" title="Nível da conta" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);vertical-align:middle;">1</span></div>
+    <div id="playerNameDisplay" onclick="openPlayerInfoModal()" style="cursor:pointer;"><span id="displayAvatar" style="margin-right:4px;">🏴‍☠️</span><span id="displayName">Pirata</span><span id="playerLevelBadge" title="Nível da conta" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);vertical-align:middle;">1</span><span id="xpRewardBadge" onclick="event.stopPropagation();openPlayerInfoModal();" title="Recompensa de XP disponível" style="display:none;margin-left:6px;background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;font-size:11px;font-weight:900;padding:2px 8px;border-radius:12px;border:2px solid gold;vertical-align:middle;animation:pulse 1.5s infinite;">💰<span id="xpRewardBadgeAmt">0</span></span></div>
     <div id="playerInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closePlayerInfoModal()">
       <div style="background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid gold;border-radius:18px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(255,215,0,0.3);">
-        <div style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
+        <div id="piAvatar" style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
         <h2 style="color:gold;margin:0 0 6px;font-size:24px;" id="piName">Pirata</h2>
         <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;color:#f1c40f;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;margin-bottom:18px;">⭐ Nível <span id="piLevel">1</span></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="piPacks" style="color:#3498db;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="piCards" style="color:#2ecc71;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏱️ Tempo jogado</span><strong id="piTime" style="color:#e67e22;">0min</strong></div>
+        <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏳ Próximo nível em</span><strong id="piNext" style="color:#9b59b6;">0s</strong></div>
+        <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(230,126,34,0.15));border:1px solid #f1c40f;border-radius:12px;padding:14px;margin-bottom:10px;color:#fff;font-size:15px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span>💰 Recompensa de XP</span><strong id="piPendingMoney" style="color:#f1c40f;">0</strong></div>
+          <button id="piCollectBtn" onclick="collectXpReward()" style="background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;width:100%;">🎁 Coletar</button>
+        </div>
         <button onclick="closePlayerInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
       </div>
     </div>
@@ -2081,12 +2122,14 @@ async function forceClearBrowserCache() {
         <button id="btnGame" class="nav-btn active" onclick="showPage('game')">🎮 Jogo</button>
         <button id="btnQuests" class="nav-btn" onclick="showPage('quests'); renderQuests();">🎯 Missões</button>
         <button id="btnIndex" class="nav-btn" onclick="showPage('index')">📖 Index</button>
+        <button id="btnWorlds" class="nav-btn" onclick="showPage('worlds')" style="background:linear-gradient(45deg,#1e3c72,#2a5298);color:white;border:1px solid #5dade2;">🌍 Mundos</button>
         <button id="btnLobby2" class="nav-btn" onclick="showLobby2()" title="Mais opções" style="background:linear-gradient(45deg,#34495e,#2c3e50);color:white;border:1px solid #7f8c8d;font-weight:900;">❯</button>
     </nav>
     <nav id="gameNav2" style="margin-top: 14px; display:none; position: relative; z-index: 3000;">
         <button id="btnLobby1" class="nav-btn" onclick="showLobby1()" title="Voltar" style="background:linear-gradient(45deg,#34495e,#2c3e50);color:white;border:1px solid #7f8c8d;font-weight:900;">❮</button>
         <button id="btnMultiplayer" class="nav-btn" onclick="openMultiplayer()">⚔️ Batalha</button>
         <button id="btnTrade" class="nav-btn" onclick="openTrade()" style="background:linear-gradient(45deg,#00695c,#00897b);color:white;border:1px solid #00e676;">🔄 Trade</button>
+        <button id="btnGuildScreen" class="nav-btn" onclick="openGuildScreen()" style="background:linear-gradient(45deg,#d35400,#e67e22);color:white;border:1px solid #f39c12;">🏴‍☠️ Tripulação</button>
     </nav>
 
     <!-- Área de Amigos (segundo lobby) -->
@@ -2103,6 +2146,48 @@ async function forceClearBrowserCache() {
         <h3 style="color:#aaa;font-size:13px;margin:0 0 8px;text-align:center;text-transform:uppercase;letter-spacing:1px;">Meus amigos</h3>
         <div id="friendsList"></div>
     </div>
+
+    <!-- Tripulação (Guild) - segundo lobby -->
+    <div id="guildPanel" style="display:none;max-width:680px;margin:16px auto 0;background:linear-gradient(160deg,#2c1810,#1a0f08);border:2px solid #d35400;border-radius:16px;padding:18px;box-shadow:0 10px 30px rgba(0,0,0,0.5);position:relative;z-index:2900;">
+        <h2 style="color:#e67e22;text-align:center;margin:0 0 4px;font-size:20px;text-shadow:0 0 12px rgba(230,126,34,0.5);font-size:22px;">🏴‍☠️ Tripulação</h2>
+        <div id="guildSubtitle" style="text-align:center;color:#aaa;font-size:14px;margin-bottom:14px;">Crie ou junte-se a uma tripulação pirata</div>
+
+        <!-- Sem tripulação: criar ou entrar -->
+        <div id="guildNoneView">
+            <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;margin-bottom:10px;">
+                <div style="color:#f39c12;font-size:15px;font-weight:bold;margin-bottom:8px;">⚓ Criar nova tripulação</div>
+                <div style="color:#aaa;font-size:13px;margin-bottom:6px;">Escolha o emblema:</div>
+                <div id="guildAvatarPicker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;justify-content:center;"></div>
+                <input id="guildCreateName" type="text" maxlength="15" placeholder="Nome da tripulação (máx 15)..." style="width:100%;padding:10px;border-radius:8px;border:1px solid #555;background:rgba(0,0,0,0.5);color:#fff;font-size:14px;box-sizing:border-box;margin-bottom:8px;">
+                <div style="display:flex;gap:8px;align-items:center;justify-content:space-between;">
+                    <span style="color:#f1c40f;font-size:15px;font-weight:bold;">💰 Custo: <span id="guildCostLabel">50.000</span></span>
+                    <button onclick="createGuild()" style="background:linear-gradient(45deg,#d35400,#e67e22);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-weight:bold;cursor:pointer;font-size:14px;">Criar 🏴‍☠️</button>
+                </div>
+            </div>
+            <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:12px;">
+                <div style="color:#3498db;font-size:15px;font-weight:bold;margin-bottom:8px;">🤝 Entrar em uma tripulação</div>
+                <div style="display:flex;gap:8px;">
+                    <input id="guildJoinName" type="text" maxlength="20" placeholder="Nome da tripulação..." style="flex:1;padding:10px;border-radius:8px;border:1px solid #555;background:rgba(0,0,0,0.5);color:#fff;font-size:14px;" onkeypress="if(event.key==='Enter')joinGuild()">
+                    <button onclick="joinGuild()" style="background:linear-gradient(45deg,#2980b9,#3498db);color:#fff;border:none;border-radius:8px;padding:0 16px;font-weight:bold;cursor:pointer;font-size:14px;">Entrar</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Com tripulação: ver membros -->
+        <div id="guildMyView" style="display:none;">
+            <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;text-align:center;">
+                <div id="guildMyAvatar" style="font-size:48px;margin-bottom:4px;">🏴‍☠️</div>
+                <div id="guildMyName" style="color:#e67e22;font-size:22px;font-weight:bold;">--</div>
+                <div style="color:#aaa;font-size:14px;margin-top:2px;">Capitão: <span id="guildCaptainName" style="color:#f1c40f;">--</span></div>
+                <div style="color:#aaa;font-size:14px;margin-top:2px;">Membros: <span id="guildMembersCount" style="color:#2ecc71;">0</span></div>
+            </div>
+            <h3 style="color:#aaa;font-size:15px;margin:0 0 8px;text-align:center;text-transform:uppercase;letter-spacing:1px;">Tripulantes</h3>
+            <div id="guildMembersList" style="margin-bottom:10px;"></div>
+            <button id="guildLeaveBtn" onclick="leaveGuild()" style="background:linear-gradient(45deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;width:100%;font-size:14px;">🚪 Sair da Tripulação</button>
+            <button id="guildDisbandBtn" onclick="disbandGuild()" style="display:none;background:linear-gradient(45deg,#7f0000,#c0392b);color:#fff;border:none;border-radius:10px;padding:10px 16px;font-weight:bold;cursor:pointer;width:100%;font-size:14px;margin-top:6px;">💥 Dissolver Tripulação</button>
+        </div>
+    </div>
+
 
     <!-- Modal de informações do amigo -->
     <div id="friendInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closeFriendInfoModal()">
@@ -2175,9 +2260,28 @@ async function forceClearBrowserCache() {
         <div id="questsContainer" style="max-width: 600px; margin: 0 auto; text-align: left; padding-bottom: 300px;"></div>
     </div>
 
+    
+    <div id="pageWorlds" class="page">
+        <h1>🌍 Mundos</h1>
+        <div id="worldsContainer" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;padding:14px;max-width:900px;margin:0 auto;">
+            <div class="world-arena" data-world="onepiece" onclick="pickWorld('onepiece')" style="cursor:pointer;background:linear-gradient(160deg,#0a4d68,#088395,#05bfdb);border:3px solid #ffd700;border-radius:18px;padding:22px;text-align:center;color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.6),0 0 24px rgba(255,215,0,.3);transition:transform .2s;">
+                <div style="font-size:64px;line-height:1;">🏴‍☠️🌊</div>
+                <h2 style="margin:10px 0 4px;font-size:24px;text-shadow:2px 2px 4px #000;">One Piece</h2>
+                <p style="margin:0;opacity:.9;font-size:13px;">⚓ Grand Line • Piratas Lendários</p>
+                <div class="world-current-tag" style="margin-top:10px;font-weight:bold;color:#ffd700;display:none;">★ Mundo Atual ★</div>
+            </div>
+            <div class="world-arena" data-world="demonslayer" onclick="pickWorld('demonslayer')" style="cursor:pointer;background:linear-gradient(160deg,#1a0000,#4a0e0e,#8b0000);border:3px solid #ff4444;border-radius:18px;padding:22px;text-align:center;color:#fff;box-shadow:0 8px 22px rgba(0,0,0,.6),0 0 24px rgba(255,68,68,.4);transition:transform .2s;">
+                <div style="font-size:64px;line-height:1;">⚔️🌸</div>
+                <h2 style="margin:10px 0 4px;font-size:24px;text-shadow:2px 2px 4px #000;">Demon Slayer</h2>
+                <p style="margin:0;opacity:.9;font-size:13px;">🗡️ Era Taisho • Caçadores de Demônios</p>
+                <div class="world-current-tag" style="margin-top:10px;font-weight:bold;color:#ffd700;display:none;">★ Mundo Atual ★</div>
+            </div>
+        </div>
+    </div>
+
     <div id="pageIndex" class="page">
         <h1>📖 Coleção de Lendas</h1>
-        <p>Progresso Total: <span id="unlockedCount">0</span> / 105</p>
+        <p>Progresso Total: <span id="unlockedCount">0</span> / <span id="totalCount">0</span> <span id="currentWorldBadge" style="margin-left:10px;padding:4px 10px;background:#222;border-radius:8px;color:#ffd700;">🏴‍☠️ One Piece</span></p>
         <p style="color: #00ffff; font-weight: bold; font-size: 18px; text-shadow: 0 0 10px rgba(0, 255, 255, 0.8);">✨ Multiplicador de Sorte: <span id="luckDisplay">1x</span></p>
         <div id="indexContainer"></div>
     </div>
@@ -2250,42 +2354,230 @@ let musicEnabled = true;
 
 const values = { common: 10, uncommon: 15, rare: 30, epic: 115, legendary: 750, mythic: 7500, god: 50000 };
 
-const characters = [
-    {name:"Usopp",rarity:"common"},{name:"Nami",rarity:"common"},{name:"Chopper",rarity:"common"},
-    {name:"Buggy",rarity:"common"},{name:"Morgan",rarity:"common"},{name:"Cabaji",rarity:"common"},
-    {name:"Mohji",rarity:"common"},{name:"Shu",rarity:"common"},{name:"Higuma",rarity:"common"},
-    {name:"Alvida",rarity:"common"},{name:"Helmeppo",rarity:"common"},{name:"Fullbody",rarity:"common"},{name:"Chew",rarity:"common"},
-    {name:"Gin",rarity:"common"},{name:"Kuro",rarity:"common"},{name:"Don Krieg",rarity:"common"},{name:"Johnny",rarity:"common"},{name:"Yosaku",rarity:"common"},
-    {name:"Koby",rarity:"uncommon"},{name:"Gaimon",rarity:"uncommon"},{name:"Hatchan",rarity:"uncommon"},
-    {name:"Mr. 9",rarity:"uncommon"},{name:"Miss Monday",rarity:"uncommon"},{name:"Pearl",rarity:"uncommon"},
-    {name:"Boodle",rarity:"uncommon"},{name:"Chouchou",rarity:"uncommon"},{name:"Kaya",rarity:"uncommon"},
-    {name:"Ninjin",rarity:"uncommon"},{name:"Piiman",rarity:"uncommon"},{name:"Tamanegi",rarity:"uncommon"},
-    {name:"Nojiko",rarity:"uncommon"},{name:"Genzo",rarity:"uncommon"},{name:"Zeff",rarity:"uncommon"},
-    {name:"Patty",rarity:"uncommon"},{name:"Carne",rarity:"uncommon"},{name:"Bell-mère",rarity:"uncommon"},
-    {name:"Zoro",rarity:"rare"},{name:"Sanji",rarity:"rare"},{name:"Robin",rarity:"rare"},
-    {name:"Franky",rarity:"rare"},{name:"Brook",rarity:"rare"},{name:"Jinbe",rarity:"rare"},
-    {name:"Smoker",rarity:"rare"},{name:"Tashigi",rarity:"rare"},{name:"Vivi",rarity:"rare"},{name:"Perona",rarity:"rare"},
-    {name:"Bepo",rarity:"rare"},{name:"Bon Clay",rarity:"rare"},{name:"Bartolomeo",rarity:"rare"},{name:"Cavendish",rarity:"rare"},
-    {name:"Carrot",rarity:"rare"},{name:"Paulie",rarity:"rare"},{name:"Kaku",rarity:"rare"},{name:"Wyper",rarity:"rare"},
-    {name:"Ace",rarity:"epic"},{name:"Law",rarity:"epic"},{name:"Kid",rarity:"epic"},
-    {name:"Sabo",rarity:"epic"},{name:"Boa Hancock",rarity:"epic"},{name:"Marco",rarity:"epic"},
-    {name:"Katakuri",rarity:"epic"},{name:"Kuma",rarity:"epic"},{name:"Crocodile",rarity:"epic"},
-    {name:"Doflamingo",rarity:"epic"},{name:"Enel",rarity:"epic"},
-    {name:"Yamato",rarity:"epic"},{name:"King",rarity:"epic"},{name:"Queen",rarity:"epic"},{name:"Killer",rarity:"epic"},
-    {name:"Jack",rarity:"epic"},{name:"Cracker",rarity:"epic"},{name:"Smoothie",rarity:"epic"},
-    {name:"Kaido",rarity:"legendary"},{name:"Shanks",rarity:"legendary"},{name:"Whitebeard",rarity:"legendary"},
-    {name:"Mihawk",rarity:"legendary"},{name:"Big Mom",rarity:"legendary"},{name:"Akainu",rarity:"legendary"},
-    {name:"Aokiji",rarity:"legendary"},{name:"Kizaru",rarity:"legendary"},{name:"Garp",rarity:"legendary"},
-    {name:"Sengoku",rarity:"legendary"},{name:"Luffy",rarity:"legendary"},
-    {name:"Fujitora",rarity:"legendary"},{name:"Oden",rarity:"legendary"},{name:"Rayleigh",rarity:"legendary"},{name:"Blackbeard",rarity:"legendary"},
-    {name:"Green Bull",rarity:"legendary"},{name:"Sabot",rarity:"legendary"},{name:"Ben Beckman",rarity:"legendary"},{name:"Shiryu",rarity:"legendary"},{name:"Tsuru",rarity:"legendary"},
-    {name:"Gol D. Roger",rarity:"mythic"},{name:"Joy Boy",rarity:"mythic"},{name:"Rocks D. Xebec",rarity:"mythic"},
-    {name:"Ryuma",rarity:"mythic"},{name:"Dragon",rarity:"mythic"},{name:"Imu",rarity:"mythic"},
-    {name:"Nika",rarity:"mythic"},{name:"Sogeking",rarity:"mythic"},{name:"Zunesha",rarity:"mythic"},
-    {name:"Ancient Robot",rarity:"mythic"},{name:"Gorosei Saturn",rarity:"mythic"},{name:"Shirahoshi (Poseidon)",rarity:"mythic"},
-    {name:"Gorosei Mars",rarity:"mythic"},{name:"Gorosei Warcury",rarity:"mythic"},{name:"Gorosei Nusjuro",rarity:"mythic"},{name:"Gorosei Ju Peter",rarity:"mythic"},{name:"Kong",rarity:"mythic"},
-    {name:"😇Diandra😇",rarity:"god"},{name:"😇Dinean😇",rarity:"god"}
+let allCharacters = [
+    {name:"Usopp",rarity:"common",world:"onepiece"},
+    {name:"Nami",rarity:"common",world:"onepiece"},
+    {name:"Chopper",rarity:"common",world:"onepiece"},
+    {name:"Buggy",rarity:"common",world:"onepiece"},
+    {name:"Morgan",rarity:"common",world:"onepiece"},
+    {name:"Cabaji",rarity:"common",world:"onepiece"},
+    {name:"Mohji",rarity:"common",world:"onepiece"},
+    {name:"Shu",rarity:"common",world:"onepiece"},
+    {name:"Higuma",rarity:"common",world:"onepiece"},
+    {name:"Alvida",rarity:"common",world:"onepiece"},
+    {name:"Helmeppo",rarity:"common",world:"onepiece"},
+    {name:"Fullbody",rarity:"common",world:"onepiece"},
+    {name:"Chew",rarity:"common",world:"onepiece"},
+    {name:"Gin",rarity:"common",world:"onepiece"},
+    {name:"Kuro",rarity:"common",world:"onepiece"},
+    {name:"Don Krieg",rarity:"common",world:"onepiece"},
+    {name:"Johnny",rarity:"common",world:"onepiece"},
+    {name:"Yosaku",rarity:"common",world:"onepiece"},
+    {name:"Koby",rarity:"uncommon",world:"onepiece"},
+    {name:"Gaimon",rarity:"uncommon",world:"onepiece"},
+    {name:"Hatchan",rarity:"uncommon",world:"onepiece"},
+    {name:"Mr. 9",rarity:"uncommon",world:"onepiece"},
+    {name:"Miss Monday",rarity:"uncommon",world:"onepiece"},
+    {name:"Pearl",rarity:"uncommon",world:"onepiece"},
+    {name:"Boodle",rarity:"uncommon",world:"onepiece"},
+    {name:"Chouchou",rarity:"uncommon",world:"onepiece"},
+    {name:"Kaya",rarity:"uncommon",world:"onepiece"},
+    {name:"Ninjin",rarity:"uncommon",world:"onepiece"},
+    {name:"Piiman",rarity:"uncommon",world:"onepiece"},
+    {name:"Tamanegi",rarity:"uncommon",world:"onepiece"},
+    {name:"Nojiko",rarity:"uncommon",world:"onepiece"},
+    {name:"Genzo",rarity:"uncommon",world:"onepiece"},
+    {name:"Zeff",rarity:"uncommon",world:"onepiece"},
+    {name:"Patty",rarity:"uncommon",world:"onepiece"},
+    {name:"Carne",rarity:"uncommon",world:"onepiece"},
+    {name:"Bell-mère",rarity:"uncommon",world:"onepiece"},
+    {name:"Zoro",rarity:"rare",world:"onepiece"},
+    {name:"Sanji",rarity:"rare",world:"onepiece"},
+    {name:"Robin",rarity:"rare",world:"onepiece"},
+    {name:"Franky",rarity:"rare",world:"onepiece"},
+    {name:"Brook",rarity:"rare",world:"onepiece"},
+    {name:"Jinbe",rarity:"rare",world:"onepiece"},
+    {name:"Smoker",rarity:"rare",world:"onepiece"},
+    {name:"Tashigi",rarity:"rare",world:"onepiece"},
+    {name:"Vivi",rarity:"rare",world:"onepiece"},
+    {name:"Perona",rarity:"rare",world:"onepiece"},
+    {name:"Bepo",rarity:"rare",world:"onepiece"},
+    {name:"Bon Clay",rarity:"rare",world:"onepiece"},
+    {name:"Bartolomeo",rarity:"rare",world:"onepiece"},
+    {name:"Cavendish",rarity:"rare",world:"onepiece"},
+    {name:"Carrot",rarity:"rare",world:"onepiece"},
+    {name:"Paulie",rarity:"rare",world:"onepiece"},
+    {name:"Kaku",rarity:"rare",world:"onepiece"},
+    {name:"Wyper",rarity:"rare",world:"onepiece"},
+    {name:"Ace",rarity:"epic",world:"onepiece"},
+    {name:"Law",rarity:"epic",world:"onepiece"},
+    {name:"Kid",rarity:"epic",world:"onepiece"},
+    {name:"Sabo",rarity:"epic",world:"onepiece"},
+    {name:"Boa Hancock",rarity:"epic",world:"onepiece"},
+    {name:"Marco",rarity:"epic",world:"onepiece"},
+    {name:"Katakuri",rarity:"epic",world:"onepiece"},
+    {name:"Kuma",rarity:"epic",world:"onepiece"},
+    {name:"Crocodile",rarity:"epic",world:"onepiece"},
+    {name:"Doflamingo",rarity:"epic",world:"onepiece"},
+    {name:"Enel",rarity:"epic",world:"onepiece"},
+    {name:"Yamato",rarity:"epic",world:"onepiece"},
+    {name:"King",rarity:"epic",world:"onepiece"},
+    {name:"Queen",rarity:"epic",world:"onepiece"},
+    {name:"Killer",rarity:"epic",world:"onepiece"},
+    {name:"Jack",rarity:"epic",world:"onepiece"},
+    {name:"Cracker",rarity:"epic",world:"onepiece"},
+    {name:"Smoothie",rarity:"epic",world:"onepiece"},
+    {name:"Kaido",rarity:"legendary",world:"onepiece"},
+    {name:"Shanks",rarity:"legendary",world:"onepiece"},
+    {name:"Whitebeard",rarity:"legendary",world:"onepiece"},
+    {name:"Mihawk",rarity:"legendary",world:"onepiece"},
+    {name:"Big Mom",rarity:"legendary",world:"onepiece"},
+    {name:"Akainu",rarity:"legendary",world:"onepiece"},
+    {name:"Aokiji",rarity:"legendary",world:"onepiece"},
+    {name:"Kizaru",rarity:"legendary",world:"onepiece"},
+    {name:"Garp",rarity:"legendary",world:"onepiece"},
+    {name:"Sengoku",rarity:"legendary",world:"onepiece"},
+    {name:"Luffy",rarity:"legendary",world:"onepiece"},
+    {name:"Fujitora",rarity:"legendary",world:"onepiece"},
+    {name:"Oden",rarity:"legendary",world:"onepiece"},
+    {name:"Rayleigh",rarity:"legendary",world:"onepiece"},
+    {name:"Blackbeard",rarity:"legendary",world:"onepiece"},
+    {name:"Green Bull",rarity:"legendary",world:"onepiece"},
+    {name:"Sabot",rarity:"legendary",world:"onepiece"},
+    {name:"Ben Beckman",rarity:"legendary",world:"onepiece"},
+    {name:"Shiryu",rarity:"legendary",world:"onepiece"},
+    {name:"Tsuru",rarity:"legendary",world:"onepiece"},
+    {name:"Gol D. Roger",rarity:"mythic",world:"onepiece"},
+    {name:"Joy Boy",rarity:"mythic",world:"onepiece"},
+    {name:"Rocks D. Xebec",rarity:"mythic",world:"onepiece"},
+    {name:"Ryuma",rarity:"mythic",world:"onepiece"},
+    {name:"Dragon",rarity:"mythic",world:"onepiece"},
+    {name:"Imu",rarity:"mythic",world:"onepiece"},
+    {name:"Nika",rarity:"mythic",world:"onepiece"},
+    {name:"Sogeking",rarity:"mythic",world:"onepiece"},
+    {name:"Zunesha",rarity:"mythic",world:"onepiece"},
+    {name:"Ancient Robot",rarity:"mythic",world:"onepiece"},
+    {name:"Gorosei Saturn",rarity:"mythic",world:"onepiece"},
+    {name:"Shirahoshi (Poseidon)",rarity:"mythic",world:"onepiece"},
+    {name:"Gorosei Mars",rarity:"mythic",world:"onepiece"},
+    {name:"Gorosei Warcury",rarity:"mythic",world:"onepiece"},
+    {name:"Gorosei Nusjuro",rarity:"mythic",world:"onepiece"},
+    {name:"Gorosei Ju Peter",rarity:"mythic",world:"onepiece"},
+    {name:"Kong",rarity:"mythic",world:"onepiece"},
+    {name:"Tanjuro Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Kie Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Hanako Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Takeo Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Shigeru Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Rokuta Kamado",rarity:"common",world:"demonslayer"},
+    {name:"Sumi Nakahara",rarity:"common",world:"demonslayer"},
+    {name:"Kiyo Terauchi",rarity:"common",world:"demonslayer"},
+    {name:"Naho Takada",rarity:"common",world:"demonslayer"},
+    {name:"Goto",rarity:"common",world:"demonslayer"},
+    {name:"Saburo",rarity:"common",world:"demonslayer"},
+    {name:"Murata",rarity:"common",world:"demonslayer"},
+    {name:"Teruko",rarity:"common",world:"demonslayer"},
+    {name:"Kotoha",rarity:"common",world:"demonslayer"},
+    {name:"Tetsuido",rarity:"common",world:"demonslayer"},
+    {name:"Aoba Hashibira",rarity:"common",world:"demonslayer"},
+    {name:"Ozaki",rarity:"common",world:"demonslayer"},
+    {name:"Hisa",rarity:"common",world:"demonslayer"},
+    {name:"Yushiro",rarity:"uncommon",world:"demonslayer"},
+    {name:"Makomo",rarity:"uncommon",world:"demonslayer"},
+    {name:"Sabito",rarity:"uncommon",world:"demonslayer"},
+    {name:"Tamayo (Curandeira)",rarity:"uncommon",world:"demonslayer"},
+    {name:"Senjuro Rengoku",rarity:"uncommon",world:"demonslayer"},
+    {name:"Shinjuro Rengoku",rarity:"uncommon",world:"demonslayer"},
+    {name:"Kanata Kamado",rarity:"uncommon",world:"demonslayer"},
+    {name:"Sumihiko Kamado",rarity:"uncommon",world:"demonslayer"},
+    {name:"Toko Agatsuma",rarity:"uncommon",world:"demonslayer"},
+    {name:"Yoshiteru Agatsuma",rarity:"uncommon",world:"demonslayer"},
+    {name:"Suma",rarity:"uncommon",world:"demonslayer"},
+    {name:"Makio",rarity:"uncommon",world:"demonslayer"},
+    {name:"Hinatsuru",rarity:"uncommon",world:"demonslayer"},
+    {name:"Aoi Kanzaki",rarity:"uncommon",world:"demonslayer"},
+    {name:"Goto (Kakushi)",rarity:"uncommon",world:"demonslayer"},
+    {name:"Nakime (Humana)",rarity:"uncommon",world:"demonslayer"},
+    {name:"Kaigaku (Humano)",rarity:"uncommon",world:"demonslayer"},
+    {name:"Susamaru",rarity:"uncommon",world:"demonslayer"},
+    {name:"Genya Shinazugawa",rarity:"rare",world:"demonslayer"},
+    {name:"Kanao Tsuyuri",rarity:"rare",world:"demonslayer"},
+    {name:"Aoi (Borboleta)",rarity:"rare",world:"demonslayer"},
+    {name:"Murata (Pilar)",rarity:"rare",world:"demonslayer"},
+    {name:"Tamayo",rarity:"rare",world:"demonslayer"},
+    {name:"Yahaba",rarity:"rare",world:"demonslayer"},
+    {name:"Rui",rarity:"rare",world:"demonslayer"},
+    {name:"Enmu",rarity:"rare",world:"demonslayer"},
+    {name:"Hairo",rarity:"rare",world:"demonslayer"},
+    {name:"Hantengu",rarity:"rare",world:"demonslayer"},
+    {name:"Gyokko",rarity:"rare",world:"demonslayer"},
+    {name:"Daki",rarity:"rare",world:"demonslayer"},
+    {name:"Gyutaro",rarity:"rare",world:"demonslayer"},
+    {name:"Akaza (Humano)",rarity:"rare",world:"demonslayer"},
+    {name:"Kyogai",rarity:"rare",world:"demonslayer"},
+    {name:"Susamaru (Demônio)",rarity:"rare",world:"demonslayer"},
+    {name:"Kamanue",rarity:"rare",world:"demonslayer"},
+    {name:"Wakuraba",rarity:"rare",world:"demonslayer"},
+    {name:"Sanemi Shinazugawa",rarity:"epic",world:"demonslayer"},
+    {name:"Obanai Iguro",rarity:"epic",world:"demonslayer"},
+    {name:"Mitsuri Kanroji",rarity:"epic",world:"demonslayer"},
+    {name:"Muichiro Tokito",rarity:"epic",world:"demonslayer"},
+    {name:"Tengen Uzui",rarity:"epic",world:"demonslayer"},
+    {name:"Shinobu Kocho",rarity:"epic",world:"demonslayer"},
+    {name:"Giyu Tomioka",rarity:"epic",world:"demonslayer"},
+    {name:"Kyojuro Rengoku",rarity:"epic",world:"demonslayer"},
+    {name:"Gyomei Himejima",rarity:"epic",world:"demonslayer"},
+    {name:"Kagaya Ubuyashiki",rarity:"epic",world:"demonslayer"},
+    {name:"Kaigaku",rarity:"epic",world:"demonslayer"},
+    {name:"Nakime",rarity:"epic",world:"demonslayer"},
+    {name:"Yoriichi Tsugikuni (Jovem)",rarity:"epic",world:"demonslayer"},
+    {name:"Michikatsu Tsugikuni",rarity:"epic",world:"demonslayer"},
+    {name:"Akaza",rarity:"epic",world:"demonslayer"},
+    {name:"Hantengu (Real)",rarity:"epic",world:"demonslayer"},
+    {name:"Gyokko (Pote)",rarity:"epic",world:"demonslayer"},
+    {name:"Daki (Real)",rarity:"epic",world:"demonslayer"},
+    {name:"Tanjiro Kamado",rarity:"legendary",world:"demonslayer"},
+    {name:"Nezuko Kamado",rarity:"legendary",world:"demonslayer"},
+    {name:"Zenitsu Agatsuma",rarity:"legendary",world:"demonslayer"},
+    {name:"Inosuke Hashibira",rarity:"legendary",world:"demonslayer"},
+    {name:"Sakonji Urokodaki",rarity:"legendary",world:"demonslayer"},
+    {name:"Jigoro Kuwajima",rarity:"legendary",world:"demonslayer"},
+    {name:"Shinjuro Rengoku (Pilar)",rarity:"legendary",world:"demonslayer"},
+    {name:"Kuwajima",rarity:"legendary",world:"demonslayer"},
+    {name:"Muzan Kibutsuji",rarity:"legendary",world:"demonslayer"},
+    {name:"Kokushibo",rarity:"legendary",world:"demonslayer"},
+    {name:"Doma",rarity:"legendary",world:"demonslayer"},
+    {name:"Akaza (Pleno)",rarity:"legendary",world:"demonslayer"},
+    {name:"Yoriichi Tsugikuni",rarity:"legendary",world:"demonslayer"},
+    {name:"Sumiyoshi",rarity:"legendary",world:"demonslayer"},
+    {name:"Suyako",rarity:"legendary",world:"demonslayer"},
+    {name:"Tanjiro (Demônio)",rarity:"legendary",world:"demonslayer"},
+    {name:"Nezuko (Humana)",rarity:"legendary",world:"demonslayer"},
+    {name:"Zenitsu (Trovão Definitivo)",rarity:"legendary",world:"demonslayer"},
+    {name:"Inosuke (Rei da Montanha)",rarity:"legendary",world:"demonslayer"},
+    {name:"Gyomei (Pleno)",rarity:"legendary",world:"demonslayer"},
+    {name:"Yoriichi (Lendário)",rarity:"mythic",world:"demonslayer"},
+    {name:"Muzan (Forma Final)",rarity:"mythic",world:"demonslayer"},
+    {name:"Kokushibo (Selo Lunar)",rarity:"mythic",world:"demonslayer"},
+    {name:"Doma (Pleno)",rarity:"mythic",world:"demonslayer"},
+    {name:"Akaza (Memória)",rarity:"mythic",world:"demonslayer"},
+    {name:"Tanjiro (Sol Pleno)",rarity:"mythic",world:"demonslayer"},
+    {name:"Tamayo (Cura Definitiva)",rarity:"mythic",world:"demonslayer"},
+    {name:"Sumiyoshi (Origem)",rarity:"mythic",world:"demonslayer"},
+    {name:"Suyako (Origem)",rarity:"mythic",world:"demonslayer"},
+    {name:"Kagaya (Profecia)",rarity:"mythic",world:"demonslayer"},
+    {name:"Ubuyashiki Eterno",rarity:"mythic",world:"demonslayer"},
+    {name:"Nezuko (Imune ao Sol)",rarity:"mythic",world:"demonslayer"},
+    {name:"Yoriichi (Décimo Terceiro)",rarity:"mythic",world:"demonslayer"},
+    {name:"Muzan (Rei dos Demônios)",rarity:"mythic",world:"demonslayer"},
+    {name:"Tanjiro (Continuador)",rarity:"mythic",world:"demonslayer"},
+    {name:"Zenitsu (Honoikazuchi)",rarity:"mythic",world:"demonslayer"},
+    {name:"Inosuke (Besta Suprema)",rarity:"mythic",world:"demonslayer"}
 ];
+let currentWorld = 'onepiece';
+let characters = allCharacters.filter(c => c.world === currentWorld);
+function setWorld(w){ currentWorld = w; characters = allCharacters.filter(c=>c.world===currentWorld); try{ saveGame(); }catch(e){} try{ renderIndex(); }catch(e){} try{ renderInventory(); }catch(e){} updateWorldBadge(); }
+function updateWorldBadge(){ var el=document.getElementById('currentWorldBadge'); if(el){ el.innerText = currentWorld==='onepiece' ? '🏴‍☠️ One Piece' : '⚔️ Demon Slayer'; } }
 
 const PACK_PRICE = 100;
 
@@ -2357,6 +2649,7 @@ let isAdmin = false;
 let currentGameVersion = localStorage.getItem('gameVersion') || "1.0";
 let updateListener = null;
 let latestVersionFromServer = null;
+let latestUrlFromServer = '';
 
 // Login como admin
 function loginAsAdmin() {
@@ -2473,11 +2766,24 @@ function setupUpdateListener() {
         if (!data || !data.active) return;
 
         latestVersionFromServer = data.version;
+        latestUrlFromServer = data.url || '';
         const myVersion = localStorage.getItem('gameVersion') || "1.0";
 
-        // Se a versão do servidor for diferente da minha, mostrar banner
-        if (data.version !== myVersion) {
+        // So mostra banner se a versao do servidor for MAIOR que a minha
+        let isNewer = false;
+        try {
+            const a = parseFloat(data.version);
+            const b = parseFloat(myVersion);
+            if (!isNaN(a) && !isNaN(b)) isNewer = a > b;
+            else isNewer = String(data.version) !== String(myVersion);
+        } catch(e) { isNewer = String(data.version) !== String(myVersion); }
+
+        if (isNewer) {
             showUpdateBanner(data.version, data.url || '');
+        } else {
+            // Ja estamos na ultima (ou mais nova): esconde banner se estiver visivel
+            const banner = document.getElementById('updateBanner');
+            if (banner) banner.classList.remove('show');
         }
     });
 }
@@ -2497,14 +2803,22 @@ function showUpdateBanner(version, url) {
 function applyGameUpdate() {
     playClick();
     const banner = document.getElementById('updateBanner');
-    const version = banner ? banner.dataset.version : null;
-    const url = banner ? banner.dataset.url : '';
+    // SEMPRE pula para a ULTIMA versao disponivel no servidor (nao a do banner antigo)
+    const version = latestVersionFromServer || (banner ? banner.dataset.version : null);
+    const url = (latestUrlFromServer && latestUrlFromServer.trim() !== '')
+        ? latestUrlFromServer
+        : (banner ? (banner.dataset.url || '') : '');
 
     try { if (typeof saveGame === 'function') saveGame(); } catch(e) {}
 
+    // Grava IMEDIATAMENTE a versao alvo para evitar que o banner reapareca
+    try { if (version) localStorage.setItem('gameVersion', String(version)); } catch(e) {}
+
+    // Esconde o banner para nao reaparecer durante a atualizacao
+    if (banner) banner.classList.remove('show');
+
     // Se tiver URL externa, vai direto pra ela
     if (url && url.trim() !== '') {
-        try { localStorage.setItem('gameVersion', version || ''); } catch(e) {}
         window.location.href = url;
         return;
     }
@@ -2513,26 +2827,26 @@ function applyGameUpdate() {
     var screen = document.getElementById('updatingScreen');
     if (screen) screen.classList.add('show');
     var att = document.getElementById('updatingAttempt');
-    if (att) att.textContent = 'Iniciando atualização para v' + (version||'?') + '...';
+    if (att) att.textContent = 'Atualizando para a ultima versao v' + (version||'?') + '...';
 
-    // Grava flag de atualização em andamento. O boot script no topo cuidará dos reloads.
+    // Marca como concluido em 1 unica tentativa (ja gravamos gameVersion = alvo)
     try {
         sessionStorage.setItem('gameUpdating', JSON.stringify({
             target: version || '',
             attempts: 0,
-            max: 6
+            max: 1
         }));
     } catch(e) {}
 
     setTimeout(function(){
         try {
             if (typeof forceClearBrowserCache === 'function') {
-                forceClearBrowserCache().then(function(){ window.location.reload(); }).catch(function(){ window.location.reload(); });
+                forceClearBrowserCache().then(function(){ window.location.reload(true); }).catch(function(){ window.location.reload(true); });
             } else {
-                window.location.reload();
+                window.location.reload(true);
             }
         } catch(e) { window.location.reload(); }
-    }, 800);
+    }, 600);
 }
 
 
@@ -2699,7 +3013,8 @@ function saveGame() {
         money, inventory, unlockedCards: Array.from(unlockedCards), lockedIndexCards: Array.from(lockedIndexCards), 
         usedCodes: Array.from(usedCodes),
         autoSell, skipAnimation, baseIncome, currentResetPrice, hasAutoSpin, musicEnabled, stats, quests, boostEndTime, questResetEndTime,
-        savedVolume // Salva o volume
+        savedVolume, // Salva o volume
+        currentWorld
     })); 
 }
 
@@ -2719,6 +3034,7 @@ function loadGame() {
         stats = data.stats || { packs: 0, legendaries: 0, sold: 0, spent: 0, mythics: 0 };
         quests = Array.isArray(data.quests) ? data.quests : [];
         savedVolume = data.savedVolume !== undefined ? data.savedVolume : 0.15; // Carrega o volume
+        if(data.currentWorld){ currentWorld = data.currentWorld; characters = allCharacters.filter(c=>c.world===currentWorld); }
 
         // Garante missões: primeira vez ou ciclo de 1h vencido
         let now = Date.now();
@@ -2802,6 +3118,12 @@ function showPage(pageName){
         if(wrapper) wrapper.style.display = 'none';
         if(statsWrapper) statsWrapper.style.display = 'none';
         renderQuests();
+    } else if(pageName === 'worlds') {
+        document.getElementById('pageWorlds').classList.add('active');
+        document.getElementById('btnWorlds').classList.add('active');
+        if(wrapper) wrapper.style.display = 'none';
+        if(statsWrapper) statsWrapper.style.display = 'none';
+        renderWorlds();
     } else { 
         document.getElementById('pageIndex').classList.add('active');
         document.getElementById('btnIndex').classList.add('active'); 
@@ -2812,8 +3134,9 @@ function showPage(pageName){
     } 
 }
 
-function showLobby2(){
+function showLobby2(dir){
     playClick();
+    __lobbyAnimDir = (dir==='left'?'left':'right');
     // Esconde todas as páginas do jogo (sem girar cartas, inventário, etc.)
     document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
     const wrapper = document.getElementById('moneyStatsWrapper');
@@ -2827,8 +3150,9 @@ function showLobby2(){
     renderFriends();
 }
 
-function showLobby1(){
+function showLobby1(dir){
     playClick();
+    __lobbyAnimDir = (dir==='right'?'right':'left');
     document.getElementById('gameNav2').style.display = 'none';
     const fp = document.getElementById('friendsPanel');
     if(fp) fp.style.display = 'none';
@@ -2855,8 +3179,7 @@ function getRandomCard(){
     if(r < 0.998) return getBy("epic");        
     if(r < 0.9997) return getBy("legendary");  
     if(r < 0.9999) return getBy("mythic");     
-    if(r < 0.99991) return getBy("god");       
-    return getBy("legendary");
+    return getBy("mythic");
 }
 
 function getBy(r){ let list = characters.filter(c => c.rarity === r); return list[Math.floor(Math.random() * list.length)]; }
@@ -2894,7 +3217,7 @@ async function openMultiple(times){
 
 function renderInventory(){
     let inv = document.getElementById("inventory"); inv.innerHTML = "";
-    ["common","uncommon","rare","epic","legendary","mythic","god"].forEach(r => {
+    ["common","uncommon","rare","epic","legendary","mythic"].forEach(r => {
         let group = Object.values(inventory).filter(c => c.rarity === r); if(group.length === 0) return;
         let section = document.createElement("div"); 
         section.innerHTML = `<div style="display:flex; justify-content:center; align-items:center; gap:10px; margin:10px 0 5px 0;"><h4 style="margin:0;">${r.toUpperCase()}</h4><button style="background: #e74c3c; color: white; padding: 4px 8px; font-size: 15px; border: 1px solid #c0392b; border-radius: 4px; cursor: pointer;" onclick="sellAllByRarity('${r}')">Vender Todas</button></div>`;
@@ -2974,10 +3297,13 @@ function activateBoost(seconds) {
 
 function renderIndex(){
     let container = document.getElementById("indexContainer"); container.innerHTML = "";
-    document.getElementById("unlockedCount").innerText = unlockedCards.size;
+    var tc = document.getElementById("totalCount"); if(tc) tc.innerText = characters.length;
+    var unlockedInWorld = 0; characters.forEach(function(c){ if(unlockedCards.has(c.name)) unlockedInWorld++; });
+    document.getElementById("unlockedCount").innerText = unlockedInWorld;
+    updateWorldBadge();
     let luckDisplay = document.getElementById("luckDisplay");
     if(luckDisplay) { let luck = calculateLuckMultiplier(); luckDisplay.innerText = luck === 1 ? "1x" : luck.toFixed(2) + "x"; }
-    ["common","uncommon","rare","epic","legendary","mythic","god"].forEach(r => {
+    ["common","uncommon","rare","epic","legendary","mythic"].forEach(r => {
         let title = document.createElement("h4"); title.innerText = r.toUpperCase(); container.appendChild(title);
         let groupDiv = document.createElement("div"); groupDiv.className = "index-group";
         characters.filter(c => c.rarity === r).forEach(char => {
@@ -2994,6 +3320,37 @@ function renderIndex(){
     });
 }
 
+
+function renderWorlds(){
+    document.querySelectorAll('.world-arena').forEach(function(el){
+        var tag = el.querySelector('.world-current-tag');
+        if(el.dataset.world === currentWorld){ el.style.outline = '4px solid #ffd700'; if(tag) tag.style.display='block'; }
+        else { el.style.outline = 'none'; if(tag) tag.style.display='none'; }
+    });
+}
+function isWorldComplete(world){
+    var list = allCharacters.filter(function(c){ return c.world === world; });
+    if(list.length === 0) return false;
+    for(var i=0;i<list.length;i++){
+        if(!inventory[list[i].name] || inventory[list[i].name] <= 0) return false;
+    }
+    return true;
+}
+function pickWorld(w){
+    if(w === currentWorld){ showPage('index'); return; }
+    if(!isWorldComplete(currentWorld)){
+        var curLabel = currentWorld==='onepiece' ? '🏴‍☠️ One Piece' : '⚔️ Demon Slayer';
+        alert('🔒 Mundo bloqueado!\nVocê precisa completar a Index de ' + curLabel + ' antes de trocar de mundo.');
+        return;
+    }
+    var label = w==='onepiece' ? '🏴‍☠️ One Piece' : '⚔️ Demon Slayer';
+    if(!confirm('Deseja realmente trocar para o mundo ' + label + '?')) return;
+    try{ playClick(); }catch(e){}
+    setWorld(w);
+    renderWorlds();
+    showPage('index');
+}
+
 function lockIndexCard(name, cost) {
     playClick(); if(money >= cost) { money -= cost; stats.spent += cost; lockedIndexCards.add(name); updateMoney(); renderIndex(); saveGame(); } else { alert("Você precisa de " + cost.toLocaleString() + " Berries!"); }
 }
@@ -3006,6 +3363,7 @@ window.addEventListener("load", function() {
 
 // === SISTEMA MULTIPLAYER - NOME DO JOGADOR ===
 let playerName = localStorage.getItem('playerName') || '';
+window.playerName = playerName;
 
 function checkPlayerName() {
     if (!playerName) {
@@ -3047,6 +3405,7 @@ async function savePlayerName() {
         if (btn) { btn.disabled = false; btn.textContent = 'ZARPAR! ⚓'; }
     }
     playerName = name;
+    window.playerName = playerName;
     localStorage.setItem('playerName', playerName);
     document.getElementById('nameScreen').style.display = 'none';
     document.getElementById('startScreen').style.display = 'flex';
@@ -4422,6 +4781,9 @@ async function endBattle(winner, reason) {
         _showBattleResult(false, null, 'tie', '⚖️ Empate total! Ninguém ganhou cartas.', '');
     } else {
         _showBattleResult(isVictory, winner, reason, null, cardTransferMsg);
+        if (isVictory && window.__addBattleWin) {
+            try { window.__addBattleWin(); } catch(e) { console.warn(e); }
+        }
     }
     setTimeout(() => { if (currentRoom) leaveRoom(); }, 7000);
 }
@@ -5961,51 +6323,168 @@ document.addEventListener('DOMContentLoaded', function(){
 </script>
 
 <script>
-/* ========= Sistema de Nível por Tempo Jogado ========= */
+/* ========= Sistema de Nível por Tempo Jogado (progressivo) =========
+   Nível 1 → 2: 60s. Cada nível seguinte demora +60s a mais (n→n+1 = 60*n s).
+   Recompensa por subir para o nível L = 100 * L (vai para "pendingMoney" coletável no perfil). */
 (function(){
   const KEY_TIME = 'playerPlayTimeSec';
-  const SEC_PER_LEVEL = 60; // 1 min = +1 nível
+  const KEY_BONUS = 'playerBonusLevel';
+  const KEY_PENDING = 'playerPendingXpMoney';
+  const KEY_LAST_LVL = 'playerLastProcessedLevel';
+  const SEC_BASE = 60;
+
   function getPlayTime(){ return parseInt(localStorage.getItem(KEY_TIME)||'0',10)||0; }
   function setPlayTime(v){ localStorage.setItem(KEY_TIME, String(v)); }
-  function getLevel(){ return 1 + Math.floor(getPlayTime()/SEC_PER_LEVEL); }
+  function getBonus(){ return parseInt(localStorage.getItem(KEY_BONUS)||'0',10)||0; }
+  function setBonus(v){ localStorage.setItem(KEY_BONUS, String(v)); }
+  function getPending(){ return parseInt(localStorage.getItem(KEY_PENDING)||'0',10)||0; }
+  function setPending(v){ localStorage.setItem(KEY_PENDING, String(v)); }
+  function getLastLvl(){ return parseInt(localStorage.getItem(KEY_LAST_LVL)||'1',10)||1; }
+  function setLastLvl(v){ localStorage.setItem(KEY_LAST_LVL, String(v)); }
+
+  function levelFromTime(t){
+    if (t <= 0) return 1;
+    const L = Math.floor((1 + Math.sqrt(1 + (8*t)/SEC_BASE)) / 2);
+    return Math.max(1, L);
+  }
+  function timeToReachLevel(L){ return SEC_BASE * L * (L-1) / 2; }
+  function getLevel(){ return levelFromTime(getPlayTime()) + getBonus(); }
+  function getSecondsToNextLevel(){
+    const t = getPlayTime();
+    const L = levelFromTime(t);
+    return Math.max(0, timeToReachLevel(L+1) - t);
+  }
+  function rewardForLevel(L){ return 100 * L; }
+
+  function processLevelUps(){
+    const curLvl = getLevel();
+    let last = getLastLvl();
+    if (curLvl > last){
+      let added = 0;
+      for (let L = last+1; L <= curLvl; L++) added += rewardForLevel(L);
+      setPending(getPending() + added);
+      setLastLvl(curLvl);
+      showLevelUpToast(curLvl, added);
+    } else if (curLvl < last){
+      setLastLvl(curLvl);
+    }
+  }
+
+  function showLevelUpToast(lvl, gained){
+    try{
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;border:2px solid gold;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;';
+      t.innerHTML = '⬆️ NÍVEL '+lvl+'!<br><span style="font-size:13px;color:#fff8dc;">+'+gained.toLocaleString()+' 💰 disponível no perfil</span>';
+      document.body.appendChild(t);
+      setTimeout(()=>{ try{t.remove();}catch(e){} }, 3500);
+    }catch(e){}
+  }
+
+  window.__addBattleWin = function(){
+    setBonus(getBonus()+1);
+    processLevelUps();
+    const lvl = getLevel();
+    const reward = 50 * lvl;
+    try {
+      if (typeof money !== 'undefined') {
+        money = (money === Infinity) ? Infinity : (money + reward);
+        if (typeof updateMoney === 'function') updateMoney();
+        if (typeof saveGame === 'function') saveGame();
+      }
+    } catch(e){}
+    updateBadge();
+    try {
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#27ae60,#16a085);color:#fff;border:2px solid gold;border-radius:12px;padding:14px 22px;font-size:16px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;';
+      t.innerHTML = '🏆 VITÓRIA!<br><span style="font-size:14px;font-weight:normal;">+1 Nível • +$'+reward.toLocaleString()+'</span><br><span style="font-size:12px;color:#ffd700;">Nível atual: '+lvl+'</span>';
+      document.body.appendChild(t);
+      setTimeout(()=>{ try{t.remove();}catch(e){} }, 4000);
+    } catch(e){}
+    return { level: lvl, reward: reward };
+  };
+
   function updateBadge(){
     const b = document.getElementById('playerLevelBadge');
     if (b) b.textContent = getLevel();
+    const badge = document.getElementById('xpRewardBadge');
+    const amt = document.getElementById('xpRewardBadgeAmt');
+    const p = getPending();
+    if (badge && amt){
+      if (p > 0){ badge.style.display='inline-block'; amt.textContent = p.toLocaleString(); }
+      else { badge.style.display='none'; }
+    }
   }
+
   window.__getPlayerLevel = getLevel;
   window.__getPlayerPlayTime = getPlayTime;
+  window.__getPendingXpMoney = getPending;
+  window.__getNextLevelSeconds = getSecondsToNextLevel;
+  window.__processLevelUps = processLevelUps;
+
+  window.collectXpReward = function(){
+    processLevelUps();
+    const p = getPending();
+    if (p <= 0){ try{ alert('Nenhuma recompensa de XP disponível ainda.'); }catch(e){} return; }
+    try{
+      if (typeof money !== 'undefined'){
+        money = (money === Infinity) ? Infinity : (money + p);
+        if (typeof updateMoney === 'function') updateMoney();
+      }
+    }catch(e){}
+    setPending(0);
+    try{ if (typeof saveGame === 'function') saveGame(); }catch(e){}
+    updateBadge();
+    if (typeof refreshPlayerInfoModal === 'function') refreshPlayerInfoModal();
+    try{ alert('💰 +'+p.toLocaleString()+' coletados!'); }catch(e){}
+  };
 
   setInterval(function(){
-    // Conta tempo apenas se o jogo já começou (nome definido + tela start escondida ou nav visível)
     const nav = document.getElementById('gameNav');
     const visible = nav && nav.style.display !== 'none';
     if (!visible) return;
     if (document.hidden) return;
     setPlayTime(getPlayTime()+1);
+    processLevelUps();
     updateBadge();
+    const m = document.getElementById('playerInfoModal');
+    if (m && m.style.display === 'flex' && typeof refreshPlayerInfoModal === 'function') refreshPlayerInfoModal();
   }, 1000);
 
-  document.addEventListener('DOMContentLoaded', updateBadge);
-  setTimeout(updateBadge, 1500);
+  document.addEventListener('DOMContentLoaded', function(){ processLevelUps(); updateBadge(); });
+  setTimeout(function(){ processLevelUps(); updateBadge(); }, 1500);
 })();
 
-function openPlayerInfoModal(){
-  const m = document.getElementById('playerInfoModal');
-  if (!m) return;
+function refreshPlayerInfoModal(){
   const level = (window.__getPlayerLevel ? window.__getPlayerLevel() : 1);
   const time = (window.__getPlayerPlayTime ? window.__getPlayerPlayTime() : 0);
   const packs = (typeof stats !== 'undefined' && stats && stats.packs) ? stats.packs : 0;
   const cards = (typeof unlockedCards !== 'undefined' && unlockedCards && unlockedCards.size) ? unlockedCards.size : 0;
   const mins = Math.floor(time/60), secs = time%60;
   const timeStr = mins>=60 ? (Math.floor(mins/60)+'h '+(mins%60)+'min') : (mins+'min '+secs+'s');
-  const nextIn = 60 - (time % 60);
-  document.getElementById('piName').textContent = (typeof playerName!=='undefined' && playerName) ? playerName : 'Pirata';
-  document.getElementById('piLevel').textContent = level;
-  document.getElementById('piPacks').textContent = packs;
-  document.getElementById('piCards').textContent = cards;
-  document.getElementById('piTime').textContent = timeStr;
-  const piNextEl = document.getElementById('piNext');
-  if (piNextEl) piNextEl.textContent = nextIn + 's';
+  const nextSec = (window.__getNextLevelSeconds ? window.__getNextLevelSeconds() : 60);
+  const nm = Math.floor(nextSec/60), ns = nextSec%60;
+  const nextStr = nm>0 ? (nm+'min '+ns+'s') : (ns+'s');
+  const pending = (window.__getPendingXpMoney ? window.__getPendingXpMoney() : 0);
+  const set = (id,v)=>{ const e=document.getElementById(id); if(e) e.textContent = v; };
+  set('piName', (typeof playerName!=='undefined' && playerName) ? playerName : 'Pirata');
+  set('piLevel', level);
+  set('piPacks', packs);
+  set('piCards', cards);
+  set('piTime', timeStr);
+  set('piNext', nextStr);
+  set('piPendingMoney', pending.toLocaleString());
+  const btn = document.getElementById('piCollectBtn');
+  if (btn){
+    btn.disabled = pending <= 0;
+    btn.style.opacity = pending <= 0 ? '0.5' : '1';
+    btn.style.cursor = pending <= 0 ? 'not-allowed' : 'pointer';
+  }
+}
+function openPlayerInfoModal(){
+  const m = document.getElementById('playerInfoModal');
+  if (!m) return;
+  if (window.__processLevelUps) window.__processLevelUps();
+  refreshPlayerInfoModal();
   m.style.display = 'flex';
 }
 function closePlayerInfoModal(){
@@ -6325,6 +6804,932 @@ function removeFriendFromModal(){
 </script>
 
 
+
+
+<script>
+/* Swipe horizontal entre lobby 1 (jogo) e lobby 2 (Batalha/Trade) */
+(function(){
+  var startX=0, startY=0, startT=0, tracking=false;
+  var THRESH=60, MAX_OFF_AXIS=60, MAX_TIME=600;
+
+  function isLobbyContext(){
+    var nav1 = document.getElementById('gameNav');
+    var nav2 = document.getElementById('gameNav2');
+    if(!nav1 || !nav2) return null;
+    var v1 = nav1.offsetParent !== null && getComputedStyle(nav1).display !== 'none';
+    var v2 = nav2.offsetParent !== null && getComputedStyle(nav2).display !== 'none';
+    if(v1) return 1;
+    if(v2) return 2;
+    return null;
+  }
+
+  function shouldIgnore(t){
+    if(!t) return false;
+    return !!t.closest('input, textarea, select, button, .card, .battle-card, .arena-battle-card, #battleScreen, .modal, [contenteditable="true"]');
+  }
+
+  function onStart(e){
+    var p = e.touches ? e.touches[0] : e;
+    var ctx = isLobbyContext();
+    if(ctx===null){ tracking=false; return; }
+    if(shouldIgnore(e.target)){ tracking=false; return; }
+    startX = p.clientX; startY = p.clientY; startT = Date.now(); tracking = true;
+  }
+
+  function onEnd(e){
+    if(!tracking) return;
+    tracking=false;
+    var p = (e.changedTouches && e.changedTouches[0]) ? e.changedTouches[0] : e;
+    var dx = p.clientX - startX;
+    var dy = p.clientY - startY;
+    var dt = Date.now() - startT;
+    if(dt > MAX_TIME) return;
+    if(Math.abs(dy) > MAX_OFF_AXIS) return;
+    if(Math.abs(dx) < THRESH) return;
+    var ctx = isLobbyContext();
+    if(ctx===null) return;
+    try{
+      if(dx < 0 && ctx===1 && typeof showLobby2==='function'){ showLobby2('left'); }
+      else if(dx > 0 && ctx===2 && typeof showLobby1==='function'){ showLobby1('right'); }
+    }catch(err){}
+  }
+
+  document.addEventListener('touchstart', onStart, {passive:true});
+  document.addEventListener('touchend', onEnd, {passive:true});
+})();
+</script>
+
+<script>
+var __lobbyAnimDir = null;
+(function(){
+  function animate(el, dir){
+    if(!el) return;
+    el.classList.remove('lobby-anim-in-right','lobby-anim-in-left');
+    void el.offsetWidth;
+    el.classList.add(dir==='left' ? 'lobby-anim-in-left' : 'lobby-anim-in-right');
+  }
+  var origLog = null;
+  // Hook into showLobby1/2 by observing display changes on the nav containers
+  var targets = ['gameNav','gameNav2','friendsPanel','pageGame'];
+  var lastDisplay = {};
+  function tick(){
+    if(__lobbyAnimDir){
+      var dir = __lobbyAnimDir;
+      targets.forEach(function(id){
+        var el = document.getElementById(id);
+        if(el && el.offsetParent !== null) animate(el, dir);
+      });
+      __lobbyAnimDir = null;
+    }
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+})();
+</script>
+
+<script>
+/* ============ AVATAR (FOTO DE PERFIL) ============ */
+window.AVATAR_OPTIONS = ['🏴‍☠️','💀','🦜','⚓','🗡️','🍖','🐯','🦊','🐉','🦈','👑','🌊','🔥','⚔️','🎯','🐙','🦁','🐺','🦅','🐲','🍡','🍥','🎩','🥷'];
+window.playerAvatar = localStorage.getItem('playerAvatar') || '🏴‍☠️';
+
+function _renderAvatarPicker(){
+    var box = document.getElementById('avatarPicker');
+    if(!box) return;
+    box.innerHTML = '';
+    window.AVATAR_OPTIONS.forEach(function(av){
+        var b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = av;
+        b.style.cssText = 'font-size:24px;padding:8px;border-radius:10px;border:2px solid '+(av===window.playerAvatar?'#f1c40f':'#333')+';background:'+(av===window.playerAvatar?'rgba(241,196,15,0.2)':'rgba(0,0,0,0.4)')+';cursor:pointer;transition:all .15s;';
+        b.onclick = function(){
+            window.playerAvatar = av;
+            localStorage.setItem('playerAvatar', av);
+            _renderAvatarPicker();
+            _applyAvatarToUI();
+        };
+        box.appendChild(b);
+    });
+}
+function _applyAvatarToUI(){
+    var el = document.getElementById('displayAvatar');
+    if(el) el.textContent = window.playerAvatar;
+    var pi = document.getElementById('piAvatar');
+    if(pi) pi.textContent = window.playerAvatar;
+}
+_renderAvatarPicker();
+_applyAvatarToUI();
+
+/* Estende savePlayerName e updateMyProfile para incluir avatar */
+(function(){
+    var origSave = window.savePlayerName;
+    if(typeof origSave === 'function'){
+        window.savePlayerName = async function(){
+            var r = await origSave.apply(this, arguments);
+            localStorage.setItem('playerAvatar', window.playerAvatar);
+            _applyAvatarToUI();
+            return r;
+        };
+    }
+    var origUpd = window.updateMyProfile;
+    if(typeof origUpd === 'function'){
+        window.updateMyProfile = function(){
+            try {
+                if(window.firebaseReady && window.firebaseDB && window.playerName){
+                    window.firebaseSet(window.firebaseRef(window.firebaseDB, 'profiles/' + nameKey(window.playerName) + '/avatar'), window.playerAvatar);
+                }
+            } catch(e){}
+            return origUpd.apply(this, arguments);
+        };
+    }
+})();
+/* No openPlayerInfoModal, aplica avatar */
+(function(){
+    var orig = window.openPlayerInfoModal;
+    if(typeof orig === 'function'){
+        window.openPlayerInfoModal = function(){
+            var r = orig.apply(this, arguments);
+            _applyAvatarToUI();
+            return r;
+        };
+    }
+})();
+
+/* ============ TRIPULAÇÃO (GUILD) ============ */
+window.GUILD_COST = 50000;
+window.myGuild = null; // {key, name, captain}
+window.__guildListenerKey = null;
+
+function _guildNameKey(n){ return (n||'').toLowerCase().replace(/[.#$\[\]\/\s]/g,'_'); }
+function _showGuildView(){
+    var none = document.getElementById('guildNoneView');
+    var mine = document.getElementById('guildMyView');
+    if(!none || !mine) return;
+    if(window.myGuild){
+        none.style.display='none'; mine.style.display='block';
+        document.getElementById('guildMyName').textContent = window.myGuild.name;
+        document.getElementById('guildCaptainName').textContent = window.myGuild.captain || '--';
+        var av = document.getElementById('guildMyAvatar'); if(av && window.myGuild.avatar) av.textContent = window.myGuild.avatar;
+        var isCap = (window.myGuild.captain && nameKey(window.myGuild.captain) === nameKey(window.playerName||''));
+        document.getElementById('guildLeaveBtn').style.display = isCap ? 'none':'block';
+        document.getElementById('guildDisbandBtn').style.display = isCap ? 'block':'none';
+    } else {
+        none.style.display='block'; mine.style.display='none';
+    }
+    var costEl = document.getElementById('guildCostLabel');
+    if(costEl) costEl.textContent = window.GUILD_COST.toLocaleString('pt-BR');
+}
+
+async function createGuild(){
+    if(!window.playerName && typeof playerName !== 'undefined' && playerName){ window.playerName = playerName; }
+    if(!window.playerName){ alert('Defina seu nome primeiro.'); return; }
+    if(window.myGuild){ alert('Você já está em uma tripulação. Saia dela primeiro.'); return; }
+    if(!window.firebaseReady || !window.firebaseDB){ alert('Sem conexão. Tente novamente.'); return; }
+    var input = document.getElementById('guildCreateName');
+    var name = (input.value||'').trim();
+    if(name.length < 3){ alert('Nome muito curto (mínimo 3 caracteres).'); return; }
+    if(name.length > 15){ alert('Nome muito longo (máximo 15 caracteres).'); return; }
+    if(typeof money !== 'undefined' && money !== Infinity && money < window.GUILD_COST){
+        alert('💰 Berries insuficientes! Você precisa de ' + window.GUILD_COST.toLocaleString('pt-BR') + '.');
+        return;
+    }
+    var gk = _guildNameKey(name);
+    try {
+        var snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'guilds/' + gk));
+        if(snap && snap.exists()){ alert('❌ Já existe uma tripulação com esse nome.'); return; }
+        var myKey = nameKey(window.playerName);
+        var data = {
+            name: name,
+            captain: window.playerName,
+            captainKey: myKey,
+            avatar: (window.selectedGuildAvatar || '🏴‍☠️'),
+            createdAt: Date.now(),
+            members: {}
+        };
+        data.members[myKey] = { name: window.playerName, joinedAt: Date.now(), role: 'captain', avatar: window.playerAvatar||'🏴‍☠️' };
+        await window.firebaseSet(window.firebaseRef(window.firebaseDB, 'guilds/' + gk), data);
+        await window.firebaseSet(window.firebaseRef(window.firebaseDB, 'playerGuild/' + myKey), { key: gk, name: name, joinedAt: Date.now() });
+        if(typeof money !== 'undefined' && money !== Infinity){
+            money -= window.GUILD_COST;
+            if(typeof stats !== 'undefined' && stats) stats.spent = (stats.spent||0) + window.GUILD_COST;
+            if(typeof updateMoney === 'function') updateMoney();
+            if(typeof saveGame === 'function') saveGame();
+        }
+        window.myGuild = { key: gk, name: name, captain: window.playerName, avatar: data.avatar };
+        localStorage.setItem('myGuild', JSON.stringify(window.myGuild));
+        input.value = '';
+        _watchGuild(gk);
+        _showGuildView();
+        alert('🏴‍☠️ Tripulação "'+name+'" criada com sucesso!');
+        if(typeof playClick==='function') playClick();
+    } catch(e){ console.warn(e); alert('Erro ao criar tripulação.'); }
+}
+
+async function joinGuild(){
+    if(!window.playerName && typeof playerName !== 'undefined' && playerName){ window.playerName = playerName; }
+    if(!window.playerName){ alert('Defina seu nome primeiro.'); return; }
+    if(window.myGuild){ alert('Você já está em uma tripulação.'); return; }
+    if(!window.firebaseReady || !window.firebaseDB){ alert('Sem conexão.'); return; }
+    var input = document.getElementById('guildJoinName');
+    var name = (input.value||'').trim();
+    if(name.length < 3){ alert('Digite o nome da tripulação.'); return; }
+    var gk = _guildNameKey(name);
+    try {
+        var snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'guilds/' + gk));
+        if(!snap || !snap.exists()){ alert('❌ Tripulação não encontrada.'); return; }
+        var g = snap.val();
+        var myKey = nameKey(window.playerName);
+        var members = g.members || {};
+        if(Object.keys(members).length >= 30){ alert('Essa tripulação está cheia (máx. 30).'); return; }
+        await window.firebaseSet(window.firebaseRef(window.firebaseDB, 'guilds/' + gk + '/members/' + myKey),
+            { name: window.playerName, joinedAt: Date.now(), role: 'member', avatar: window.playerAvatar||'🏴‍☠️' });
+        await window.firebaseSet(window.firebaseRef(window.firebaseDB, 'playerGuild/' + myKey), { key: gk, name: g.name, joinedAt: Date.now() });
+        window.myGuild = { key: gk, name: g.name, captain: g.captain };
+        localStorage.setItem('myGuild', JSON.stringify(window.myGuild));
+        input.value = '';
+        _watchGuild(gk);
+        _showGuildView();
+        alert('⚓ Você entrou em "'+g.name+'"!');
+        if(typeof playClick==='function') playClick();
+    } catch(e){ console.warn(e); alert('Erro ao entrar na tripulação.'); }
+}
+
+async function leaveGuild(){
+    if(!window.myGuild) return;
+    if(!confirm('Tem certeza que quer sair da tripulação?')) return;
+    var myKey = nameKey(window.playerName);
+    var gk = window.myGuild.key;
+    try {
+        if(window.firebaseDB){
+            await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'guilds/'+gk+'/members/'+myKey));
+            await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'playerGuild/'+myKey));
+        }
+    } catch(e){}
+    window.myGuild = null;
+    localStorage.removeItem('myGuild');
+    _unwatchGuild();
+    _showGuildView();
+    alert('Você saiu da tripulação.');
+}
+
+async function disbandGuild(){
+    if(!window.myGuild) return;
+    if(!confirm('Tem certeza que quer DISSOLVER a tripulação? Todos os membros serão removidos.')) return;
+    var gk = window.myGuild.key;
+    try {
+        if(window.firebaseDB){
+            var snap = await window.firebaseGet(window.firebaseRef(window.firebaseDB, 'guilds/'+gk+'/members'));
+            if(snap && snap.exists()){
+                var members = snap.val();
+                for(var mk in members){
+                    try { await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'playerGuild/'+mk)); } catch(e){}
+                }
+            }
+            await window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'guilds/'+gk));
+        }
+    } catch(e){ console.warn(e); }
+    window.myGuild = null;
+    localStorage.removeItem('myGuild');
+    _unwatchGuild();
+    _showGuildView();
+    alert('💥 Tripulação dissolvida.');
+}
+
+function _renderGuildMembers(data){
+    var list = document.getElementById('guildMembersList');
+    var cnt = document.getElementById('guildMembersCount');
+    if(!list) return;
+    list.innerHTML = '';
+    var members = (data && data.members) || {};
+    var arr = Object.keys(members).map(function(k){ return Object.assign({key:k}, members[k]); });
+    arr.sort(function(a,b){
+        if(a.role==='captain' && b.role!=='captain') return -1;
+        if(b.role==='captain' && a.role!=='captain') return 1;
+        return (a.joinedAt||0) - (b.joinedAt||0);
+    });
+    if(cnt) cnt.textContent = arr.length;
+    var meKey = (window.playerName ? nameKey(window.playerName) : '');
+    arr.forEach(function(m){
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:rgba(0,0,0,0.35);border:1px solid #444;border-radius:10px;padding:8px 10px;margin-bottom:6px;';
+        var isCap = (m.role==='captain');
+        var isMe = (m.key === meKey);
+        var safeName = (m.name||'').replace(/'/g, "\\'");
+        var headRow = document.createElement('div');
+        headRow.style.cssText = 'display:flex;align-items:center;gap:8px;width:100%;' + (isMe ? '' : 'cursor:pointer;');
+        headRow.innerHTML = '<span style="font-size:26px;">'+(m.avatar||'🏴‍☠️')+'</span>'
+            + '<div style="flex:1;min-width:120px;color:#fff;font-size:16px;font-weight:bold;">'+m.name+ (isMe ? ' <span style="color:#2ecc71;font-size:13px;font-weight:normal;">(você)</span>' : '') +'</div>'
+            + (isCap ? '<span style="background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;padding:4px 10px;border-radius:8px;font-size:13px;font-weight:900;">👑 CAPITÃO</span>' : '<span style="color:#aaa;font-size:13px;">Tripulante</span>')
+            + (isMe ? '' : '<span class="gm-toggle" style="color:#e67e22;font-size:18px;margin-left:4px;">▾</span>');
+        row.appendChild(headRow);
+        if(!isMe){
+            var actions = document.createElement('div');
+            actions.style.cssText = 'display:none;gap:6px;flex-wrap:wrap;width:100%;margin-top:6px;';
+            actions.innerHTML = ''
+              + '<button onclick="event.stopPropagation();guildBattleMember(\''+safeName+'\')" style="flex:1;min-width:90px;background:linear-gradient(45deg,#8e44ad,#9b59b6);color:#fff;border:none;border-radius:8px;padding:9px 10px;font-weight:bold;cursor:pointer;font-size:14px;">⚔️ Batalhar</button>'
+              + '<button onclick="event.stopPropagation();guildTradeMember(\''+safeName+'\')" style="flex:1;min-width:90px;background:linear-gradient(45deg,#00695c,#00897b);color:#fff;border:none;border-radius:8px;padding:9px 10px;font-weight:bold;cursor:pointer;font-size:14px;">🔄 Trade</button>'
+              + '<button onclick="event.stopPropagation();guildAddFriendMember(\''+safeName+'\')" style="flex:1;min-width:90px;background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:8px;padding:9px 10px;font-weight:bold;cursor:pointer;font-size:14px;">➕ Adicionar</button>';
+            row.appendChild(actions);
+            headRow.addEventListener('click', function(){
+                var open = actions.style.display === 'flex';
+                actions.style.display = open ? 'none' : 'flex';
+                var t = headRow.querySelector('.gm-toggle');
+                if(t) t.textContent = open ? '▾' : '▴';
+            });
+        }
+        list.appendChild(row);
+    });
+}
+
+function _watchGuild(gk){
+    if(!window.firebaseDB || !window.firebaseOnValue) return;
+    _unwatchGuild();
+    window.__guildListenerKey = gk;
+    try {
+        window.__guildUnsub = window.firebaseOnValue(window.firebaseRef(window.firebaseDB, 'guilds/'+gk), function(snap){
+            if(snap && snap.exists()){
+                var d = snap.val();
+                if(window.myGuild){
+                    window.myGuild.name = d.name;
+                    window.myGuild.captain = d.captain;
+                    if(d.avatar) window.myGuild.avatar = d.avatar;
+                }
+                _renderGuildMembers(d);
+                _showGuildView();
+            } else {
+                // tripulação foi dissolvida
+                window.myGuild = null;
+                localStorage.removeItem('myGuild');
+                _showGuildView();
+            }
+        });
+    } catch(e){ console.warn(e); }
+}
+function _unwatchGuild(){
+    if(window.__guildUnsub){ try{ window.__guildUnsub(); }catch(e){} window.__guildUnsub=null; }
+    window.__guildListenerKey = null;
+}
+
+/* Carregar guild ao iniciar */
+(function(){
+    try { window.myGuild = JSON.parse(localStorage.getItem('myGuild')||'null'); } catch(e){ window.myGuild=null; }
+    function init(){
+        if(!window.playerName) return;
+        if(!window.firebaseReady || !window.firebaseDB){ setTimeout(init, 1500); return; }
+        var myKey = nameKey(window.playerName);
+        window.firebaseGet(window.firebaseRef(window.firebaseDB, 'playerGuild/'+myKey)).then(function(snap){
+            if(snap && snap.exists()){
+                var pg = snap.val();
+                window.myGuild = { key: pg.key, name: pg.name, captain: null };
+                localStorage.setItem('myGuild', JSON.stringify(window.myGuild));
+                _watchGuild(pg.key);
+            } else {
+                window.myGuild = null;
+                localStorage.removeItem('myGuild');
+            }
+            _showGuildView();
+        }).catch(function(){ _showGuildView(); });
+    }
+    setTimeout(init, 2500);
+    setTimeout(_showGuildView, 500);
+})();
+
+/* guildPanel agora vive dentro de #guildScreen — abertura via openGuildScreen() */
+
+
+/* === TRIPULAÇÃO: tela completa (estilo Trade/Batalha) === */
+(function injectGuildScreen(){
+    if(document.getElementById('guildScreen')) return;
+    var css = document.createElement('style');
+    css.textContent = ''
+      + '#guildScreen{display:none;position:fixed;inset:0;z-index:4100;background:linear-gradient(135deg,#1a0e05 0%,#2c1810 100%);overflow:hidden;padding:0;box-sizing:border-box;}'
+      + '#guildScreen.active{display:flex;flex-direction:column;}'
+      + '#guildScreen .gs-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(0,0,0,0.55);border-bottom:2px solid #d35400;}'
+      + '#guildScreen .gs-title{color:#e67e22;font-size:24px;font-weight:900;text-shadow:0 0 12px rgba(230,126,34,0.5);}'
+      + '#guildScreen .gs-close{background:linear-gradient(45deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:8px;padding:8px 14px;font-weight:bold;cursor:pointer;font-size:14px;min-height:38px;}#guildScreen .gs-action{color:#fff;border:none;border-radius:8px;padding:7px 12px;font-weight:bold;cursor:pointer;font-size:12px;min-height:34px;}#guildChatBox.chat-fullscreen{position:fixed;inset:0;z-index:4200;margin:0;border-radius:0;border:none;border-top:2px solid #d35400;display:flex;flex-direction:column;padding:0;background:linear-gradient(135deg,#1a0e05 0%,#2c1810 100%);}#guildChatBox.chat-fullscreen .gcb-header{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(0,0,0,0.55);border-bottom:2px solid #d35400;}#guildChatBox.chat-fullscreen .gcb-header h3{color:#e67e22;font-size:20px;margin:0;text-align:left;text-shadow:0 0 12px rgba(230,126,34,0.5);}#guildChatBox.chat-fullscreen #guildChatMessages{flex:1;height:auto;margin:14px 18px 0;border-radius:12px;}#guildChatBox.chat-fullscreen #guildChatForm{margin:10px 18px 18px;}#guildChatBox.chat-fullscreen #guildChatLocked{margin:14px 18px;}#guildChatBox:not(.chat-fullscreen) .gcb-header .gs-close{display:none;}'
+      + '#guildScreen .gs-body{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:14px;max-width:780px;margin:0 auto;width:100%;box-sizing:border-box;}'
+      + '#guildScreen #guildPanel{display:block !important;margin:0 !important;max-width:none !important;}'
+      + '#guildChatBox{background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid #d35400;border-radius:16px;padding:14px;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,0.5);}'
+      + '#guildChatBox h3{color:#e67e22;font-size:16px;margin:0;text-align:center;}'
+      + '#guildChatMessages{height:240px;overflow-y:auto;background:rgba(0,0,0,0.45);border:1px solid #444;border-radius:10px;padding:10px;font-size:13px;display:flex;flex-direction:column;gap:6px;}'
+      + '#guildChatMessages .gcm-row{color:#eee;line-height:1.35;word-wrap:break-word;}'
+      + '#guildChatMessages .gcm-row .gcm-name{color:#f1c40f;font-weight:bold;margin-right:6px;}'
+      + '#guildChatMessages .gcm-row.me .gcm-name{color:#2ecc71;}'
+      + '#guildChatMessages .gcm-empty{color:#666;text-align:center;padding:20px;font-style:italic;}'
+      + '#guildChatForm{display:flex;gap:8px;}'
+      + '#guildChatInput{flex:1;padding:10px;border-radius:8px;border:1px solid #555;background:rgba(0,0,0,0.5);color:#fff;font-size:14px;}'
+      + '#guildChatSendBtn{background:linear-gradient(45deg,#d35400,#e67e22);color:#fff;border:none;border-radius:8px;padding:0 16px;font-weight:bold;cursor:pointer;font-size:14px;min-height:42px;}'
+      + '#guildChatSendBtn:disabled{opacity:0.5;cursor:not-allowed;}'
+      + '#guildChatLocked{color:#888;font-size:13px;text-align:center;padding:14px;}';
+    document.head.appendChild(css);
+
+    var screen = document.createElement('div');
+    screen.id = 'guildScreen';
+    screen.innerHTML = ''
+      + '<div class="gs-header">'
+      +   '<div class="gs-title">🏴‍☠️ Tripulação</div>'
+      +   '<div style="display:flex;gap:8px;align-items:center;">'
+      +     '<button id="guildChatToggleBtn" class="gs-close" style="background:linear-gradient(45deg,#2980b9,#3498db);" onclick="toggleGuildChat()">💬 Chat</button>'
+      +     '<button class="gs-close" onclick="closeGuildScreen()">✕ Fechar</button>'
+      +   '</div>'
+      + '</div>'
+      + '<div class="gs-body">'
+      +   '<div id="guildPanelHost"></div>'
+      +   '<div id="guildChatBox" style="display:none;">'
+      +     '<div class="gcb-header"><h3>💬 Chat da Tripulação</h3><button class="gs-close" onclick="toggleGuildChat()">✕ Fechar</button></div>'
+      +     '<div id="guildChatMessages"><div class="gcm-empty">Entre em uma tripulação para conversar.</div></div>'
+      +     '<div id="guildChatLocked">Você precisa estar em uma tripulação para usar o chat.</div>'
+      +     '<form id="guildChatForm" style="display:none;" onsubmit="event.preventDefault();sendGuildChat();">'
+      +       '<input id="guildChatInput" type="text" maxlength="200" placeholder="Mensagem para a tripulação..." autocomplete="off">'
+      +       '<button type="submit" id="guildChatSendBtn">Enviar</button>'
+      +     '</form>'
+      +   '</div>'
+      + '</div>';
+    document.body.appendChild(screen);
+})();
+
+window.openGuildScreen = function(){
+    if(!window.playerName && typeof playerName !== 'undefined' && playerName){ window.playerName = playerName; }
+    if(!window.playerName){ try{ checkPlayerName(); }catch(e){} return; }
+    try{ playClick(); }catch(e){}
+    // Mover #guildPanel para dentro do screen (uma vez)
+    var panel = document.getElementById('guildPanel');
+    var host = document.getElementById('guildPanelHost');
+    if(panel && host && panel.parentNode !== host){
+        host.appendChild(panel);
+        panel.style.display = 'block';
+    }
+    document.querySelectorAll('.page').forEach(function(p){ p.classList.remove('active'); });
+    var nav1 = document.getElementById('gameNav'); if(nav1) nav1.style.display='none';
+    var nav2 = document.getElementById('gameNav2'); if(nav2) nav2.style.display='none';
+    var fp = document.getElementById('friendsPanel'); if(fp) fp.style.display='none';
+    var wrap = document.getElementById('moneyStatsWrapper'); if(wrap) wrap.style.display='none';
+    var sw = document.getElementById('statsDisplayWrapper'); if(sw) sw.style.display='none';
+    document.getElementById('guildScreen').classList.add('active');
+    try { _showGuildView(); } catch(e){}
+    // chat fica fechado até clicar no botão 💬 Chat
+    var box = document.getElementById('guildChatBox'); if(box) box.style.display='none';
+};
+
+window.closeGuildScreen = function(){
+    try{ playClick(); }catch(e){}
+    document.getElementById('guildScreen').classList.remove('active');
+    _unwatchGuildChat();
+    if(typeof showLobby2==='function') showLobby2();
+};
+
+/* ====== Chat da Tripulação ====== */
+window.__guildChatUnsub = null;
+window.__guildChatKey = null;
+
+function _refreshGuildChatUI(){
+    var form = document.getElementById('guildChatForm');
+    var locked = document.getElementById('guildChatLocked');
+    var msgs = document.getElementById('guildChatMessages');
+    if(!form || !locked || !msgs) return;
+    if(window.myGuild && window.myGuild.key){
+        form.style.display='flex';
+        locked.style.display='none';
+        _watchGuildChat(window.myGuild.key);
+    } else {
+        form.style.display='none';
+        locked.style.display='block';
+        msgs.innerHTML = '<div class="gcm-empty">Entre em uma tripulação para conversar.</div>';
+        _unwatchGuildChat();
+    }
+}
+
+function _watchGuildChat(gk){
+    if(!window.firebaseDB || !window.firebaseOnValue) return;
+    if(window.__guildChatKey === gk && window.__guildChatUnsub) return;
+    _unwatchGuildChat();
+    window.__guildChatKey = gk;
+    try {
+        window.__guildChatUnsub = window.firebaseOnValue(
+            window.firebaseRef(window.firebaseDB, 'guilds/'+gk+'/chat'),
+            function(snap){ _renderGuildChat(snap && snap.exists() ? snap.val() : null); }
+        );
+    } catch(e){ console.warn('guild chat watch failed', e); }
+}
+
+function _unwatchGuildChat(){
+    if(window.__guildChatUnsub){ try{ window.__guildChatUnsub(); }catch(e){} }
+    window.__guildChatUnsub = null;
+    window.__guildChatKey = null;
+}
+
+function _renderGuildChat(data){
+    var box = document.getElementById('guildChatMessages');
+    if(!box) return;
+    var arr = [];
+    if(data && typeof data === 'object'){
+        for(var k in data){ if(data[k]) arr.push(data[k]); }
+    }
+    arr.sort(function(a,b){ return (a.ts||0) - (b.ts||0); });
+    if(arr.length === 0){
+        box.innerHTML = '<div class="gcm-empty">Sem mensagens ainda. Diga oi! 👋</div>';
+        return;
+    }
+    box.innerHTML = '';
+    arr.slice(-100).forEach(function(m){
+        var row = document.createElement('div');
+        row.className = 'gcm-row' + (m.from && window.playerName && m.from === window.playerName ? ' me' : '');
+        var name = document.createElement('span');
+        name.className = 'gcm-name';
+        name.textContent = (m.from || '???') + ':';
+        var txt = document.createElement('span');
+        txt.textContent = ' ' + (m.msg || '');
+        row.appendChild(name); row.appendChild(txt);
+        box.appendChild(row);
+    });
+    box.scrollTop = box.scrollHeight;
+}
+
+window.sendGuildChat = async function(){
+    var input = document.getElementById('guildChatInput');
+    if(!input) return;
+    var msg = (input.value||'').trim();
+    if(!msg) return;
+    if(!window.myGuild || !window.myGuild.key){ alert('Você não está em uma tripulação.'); return; }
+    if(!window.firebaseReady || !window.firebaseDB){ alert('Sem conexão.'); return; }
+    var name = window.playerName || (typeof playerName !== 'undefined' ? playerName : '');
+    if(!name){ alert('Defina seu nome primeiro.'); return; }
+    var gk = window.myGuild.key;
+    var key = 'm_' + Date.now() + '_' + Math.random().toString(36).slice(2,7);
+    try {
+        await window.firebaseSet(
+            window.firebaseRef(window.firebaseDB, 'guilds/'+gk+'/chat/'+key),
+            { from: name, msg: msg.slice(0,200), ts: Date.now() }
+        );
+        input.value = '';
+    } catch(e){ console.warn(e); alert('Falha ao enviar mensagem.'); }
+};
+
+
+window.toggleGuildChat = function(){
+    var box = document.getElementById('guildChatBox');
+    if(!box) return;
+    var opening = !box.classList.contains('chat-fullscreen') && (box.style.display === 'none' || !box.style.display);
+    if(opening){
+        box.classList.add('chat-fullscreen');
+        box.style.display = 'flex';
+        _refreshGuildChatUI();
+        setTimeout(function(){
+            var msgs = document.getElementById('guildChatMessages');
+            if(msgs) msgs.scrollTop = msgs.scrollHeight;
+            var inp = document.getElementById('guildChatInput'); if(inp) inp.focus();
+        }, 50);
+    } else {
+        box.classList.remove('chat-fullscreen');
+        box.style.display = 'none';
+        _unwatchGuildChat();
+    }
+    try { playClick(); } catch(e){}
+};
+
+function _guildEnsureName(){
+    if(!window.playerName && typeof playerName !== 'undefined' && playerName){ window.playerName = playerName; }
+    return !!window.playerName;
+}
+
+window.guildBattleMember = async function(name){
+    if(!_guildEnsureName()){ alert('Defina seu nome primeiro.'); return; }
+    if(!name || name === window.playerName){ return; }
+    if(!window.firebaseReady){ alert('Sem conexão.'); return; }
+    try { await challengePlayer(name); }
+    catch(e){ console.warn(e); alert('Falha ao enviar desafio.'); }
+};
+
+window.guildTradeMember = async function(name){
+    if(!_guildEnsureName()){ alert('Defina seu nome primeiro.'); return; }
+    if(!name || name === window.playerName){ return; }
+    if(!window.firebaseReady){ alert('Sem conexão.'); return; }
+    try {
+        if(typeof openTrade === 'function'){
+            try { openTrade(); } catch(e){}
+        }
+        await proposeTrade(name);
+    } catch(e){ console.warn(e); alert('Falha ao enviar pedido de trade.'); }
+};
+
+window.guildAddFriendMember = async function(name){
+    if(!_guildEnsureName()){ alert('Defina seu nome primeiro.'); return; }
+    if(!name || name === window.playerName){ alert('Você não pode adicionar a si mesmo!'); return; }
+    var inp = document.getElementById('friendNameInput');
+    if(!inp){ alert('Painel de amigos indisponível.'); return; }
+    var prev = inp.value;
+    inp.value = name;
+    try { await addFriend(); }
+    catch(e){ console.warn(e); }
+    if(inp.value === name) inp.value = prev;
+};
+
+console.log('✅ Sistema de Avatar + Tripulação + Chat + ações carregado!');
+</script>
+
+
+<script>
+(function(){
+    window.selectedGuildAvatar = '🏴‍☠️';
+    var EMOJIS = ['🏴‍☠️','⚓','⚔️','🦜','🗺️','💀','🔱','🦈','🏝️','🐙','🦑','🐉','👑','🔥','🌊','⭐','💎','🛡️','🏹','🦅'];
+    function build(){
+        var box = document.getElementById('guildAvatarPicker');
+        if(!box || box.dataset.ready) return;
+        box.dataset.ready = '1';
+        EMOJIS.forEach(function(e){
+            var b = document.createElement('button');
+            b.type='button';
+            b.textContent = e;
+            b.style.cssText = 'font-size:24px;width:44px;height:44px;border-radius:10px;border:2px solid #555;background:rgba(0,0,0,0.4);cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;';
+            if(e === window.selectedGuildAvatar){ b.style.borderColor='#e67e22'; b.style.background='rgba(230,126,34,0.2)'; }
+            b.onclick = function(){
+                window.selectedGuildAvatar = e;
+                Array.prototype.forEach.call(box.children, function(c){ c.style.borderColor='#555'; c.style.background='rgba(0,0,0,0.4)'; });
+                b.style.borderColor='#e67e22'; b.style.background='rgba(230,126,34,0.2)';
+            };
+            box.appendChild(b);
+        });
+    }
+    var tries = 0;
+    var iv = setInterval(function(){
+        build();
+        if(++tries > 40 || (document.getElementById('guildAvatarPicker') && document.getElementById('guildAvatarPicker').dataset.ready)) clearInterval(iv);
+    }, 300);
+})();
+</script>
+
+<!-- ===== BOT BATTLE SCREEN ===== -->
+<div id="botBattleScreen" style="display:none;position:fixed;inset:0;z-index:9998;background:linear-gradient(135deg,#1a1a2e,#16213e);overflow-y:auto;padding:18px;">
+  <div style="max-width:680px;margin:0 auto;color:#fff;font-family:Arial,sans-serif;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h2 style="margin:0;color:gold;font-size:22px;">🤖 Batalha vs Bot</h2>
+      <button onclick="closeBotBattle()" style="background:linear-gradient(45deg,#e74c3c,#c0392b);color:#fff;border:1px solid #ffd700;border-radius:8px;padding:7px 12px;font-weight:bold;cursor:pointer;font-size:13px;">✕ Fechar</button>
+    </div>
+    <div style="background:rgba(0,0,0,0.6);border:2px solid #9b59b6;border-radius:14px;padding:16px;">
+      <!-- Bot panel -->
+      <div id="bbBotPanel" style="background:rgba(231,76,60,0.15);border:2px solid #e74c3c;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:bold;font-size:16px;">🤖 <span id="bbBotName">Bot Pirata</span> <span style="color:#bbb;font-size:12px;">(Nv <span id="bbBotLvl">1</span>)</span></span>
+          <span id="bbBotHpText" style="color:#e74c3c;font-weight:bold;">30/30 HP</span>
+        </div>
+        <div style="background:#222;border-radius:8px;height:18px;overflow:hidden;border:1px solid #555;">
+          <div id="bbBotHpBar" style="background:linear-gradient(90deg,#e74c3c,#c0392b);height:100%;width:100%;transition:width .3s;"></div>
+        </div>
+        <div style="margin-top:8px;font-size:13px;">Carta ativa: <b id="bbBotCard">—</b> <span id="bbBotCardStats" style="color:#bbb;"></span></div>
+      </div>
+      <!-- Turn indicator -->
+      <div id="bbTurnIndicator" style="text-align:center;padding:10px;background:rgba(46,204,113,0.15);border-radius:8px;margin-bottom:14px;color:#2ecc71;font-weight:bold;font-size:15px;">🎯 SEU TURNO</div>
+      <!-- Player panel -->
+      <div id="bbMyPanel" style="background:rgba(46,204,113,0.15);border:2px solid #2ecc71;border-radius:10px;padding:12px;margin-bottom:14px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-weight:bold;font-size:16px;">🏴‍☠️ <span id="bbMyName">Você</span> <span style="color:#bbb;font-size:12px;">(Nv <span id="bbMyLvl">1</span>)</span></span>
+          <span id="bbMyHpText" style="color:#2ecc71;font-weight:bold;">30/30 HP</span>
+        </div>
+        <div style="background:#222;border-radius:8px;height:18px;overflow:hidden;border:1px solid #555;">
+          <div id="bbMyHpBar" style="background:linear-gradient(90deg,#2ecc71,#27ae60);height:100%;width:100%;transition:width .3s;"></div>
+        </div>
+        <div style="margin-top:8px;font-size:13px;">Carta ativa: <b id="bbMyCard">—</b> <span id="bbMyCardStats" style="color:#bbb;"></span></div>
+        <div style="margin-top:6px;font-size:13px;">⚡ Energia: <b id="bbMyEnergy">3</b>/5</div>
+      </div>
+      <!-- Actions -->
+      <div id="bbActions" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">
+        <button onclick="bbAttack()" style="flex:1;min-width:120px;background:linear-gradient(45deg,#e67e22,#d35400);color:#fff;border:1px solid #ffd700;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;font-size:14px;">⚔️ Atacar (1⚡)</button>
+        <button onclick="bbSpecial()" style="flex:1;min-width:120px;background:linear-gradient(45deg,#9b59b6,#8e44ad);color:#fff;border:1px solid #ffd700;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;font-size:14px;">✨ Especial (2⚡)</button>
+        <button onclick="bbSwitch()" style="flex:1;min-width:120px;background:linear-gradient(45deg,#3498db,#2980b9);color:#fff;border:1px solid #ffd700;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;font-size:14px;">🔄 Trocar Carta</button>
+        <button onclick="bbPass()" style="flex:1;min-width:120px;background:linear-gradient(45deg,#7f8c8d,#34495e);color:#fff;border:1px solid #ffd700;border-radius:8px;padding:10px;font-weight:bold;cursor:pointer;font-size:14px;">⏭️ Passar</button>
+      </div>
+      <!-- Log -->
+      <div id="bbLog" style="background:rgba(0,0,0,0.6);border:1px solid #444;border-radius:8px;padding:10px;max-height:180px;overflow-y:auto;font-size:13px;line-height:1.6;"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============= BOT BATTLE SYSTEM ============= */
+(function(){
+  let bs = null; // bot battle state
+
+  function rand(min,max){ return Math.floor(Math.random()*(max-min+1))+min; }
+
+  function buildPlayerDeck(){
+    // Tenta usar selectedDeckCards; senão usa inventário; senão fallback
+    let deck = [];
+    try {
+      if (typeof selectedDeckCards !== 'undefined' && selectedDeckCards && selectedDeckCards.length){
+        deck = selectedDeckCards.slice(0,5).map(c => {
+          const atk = (c.atk && c.atk>0) ? c.atk : (typeof getRandomAtkByRarity==='function' ? getRandomAtkByRarity(c.rarity) : 10);
+          return { name:c.name, rarity:c.rarity, atk:atk, def:Math.max(1,Math.floor(atk/2)) };
+        });
+      }
+    } catch(e){}
+    if (deck.length < 5) {
+      try {
+        const inv = (typeof inventory !== 'undefined') ? Object.values(inventory) : [];
+        for (const c of inv) {
+          if (deck.length >= 5) break;
+          const atk = (typeof getRandomAtkByRarity==='function' ? getRandomAtkByRarity(c.rarity) : 10);
+          deck.push({ name:c.name, rarity:c.rarity, atk:atk, def:Math.max(1,Math.floor(atk/2)) });
+        }
+      } catch(e){}
+    }
+    while (deck.length < 5) {
+      deck.push({ name:'Golpe Básico', rarity:'Comum', atk:rand(6,10), def:3 });
+    }
+    return deck;
+  }
+
+  function buildBotDeck(playerDeck, lvl){
+    // Bot tem ATK/DEF balanceado pelo nível e poder médio do jogador
+    const avgAtk = playerDeck.reduce((s,c)=>s+(c.atk||0),0)/playerDeck.length;
+    const names = ['Capitão IA','Marujo Cibernético','Calibre Beta','Kraken-Bot','Almirante Algoritmo'];
+    return names.map(n => {
+      // Variação de ±15% pra batalha justa
+      const atk = Math.max(3, Math.round(avgAtk * (0.85 + Math.random()*0.3)));
+      return { name:n, rarity:'Comum', atk:atk, def:Math.max(1,Math.floor(atk/2)) };
+    });
+  }
+
+  function log(msg, color){
+    const el = document.getElementById('bbLog');
+    if (!el) return;
+    const d = document.createElement('div');
+    d.style.cssText = 'padding:3px 0;' + (color ? 'color:'+color+';' : '');
+    d.innerHTML = msg;
+    el.appendChild(d);
+    el.scrollTop = el.scrollHeight;
+  }
+
+  function render(){
+    if (!bs) return;
+    document.getElementById('bbMyName').textContent = bs.myName;
+    document.getElementById('bbMyLvl').textContent = bs.myLvl;
+    document.getElementById('bbBotLvl').textContent = bs.botLvl;
+    document.getElementById('bbMyHpBar').style.width = Math.max(0,(bs.myHp/bs.myMaxHp)*100)+'%';
+    document.getElementById('bbBotHpBar').style.width = Math.max(0,(bs.botHp/bs.botMaxHp)*100)+'%';
+    document.getElementById('bbMyHpText').textContent = bs.myHp+'/'+bs.myMaxHp+' HP';
+    document.getElementById('bbBotHpText').textContent = bs.botHp+'/'+bs.botMaxHp+' HP';
+    document.getElementById('bbMyEnergy').textContent = bs.myEnergy;
+    const mc = bs.myDeck[bs.myActive], bc = bs.botDeck[bs.botActive];
+    document.getElementById('bbMyCard').textContent = mc ? mc.name : '—';
+    document.getElementById('bbMyCardStats').textContent = mc ? ('⚔'+mc.atk+' 🛡'+mc.def) : '';
+    document.getElementById('bbBotCard').textContent = bc ? bc.name : '—';
+    document.getElementById('bbBotCardStats').textContent = bc ? ('⚔'+bc.atk+' 🛡'+bc.def) : '';
+    const ti = document.getElementById('bbTurnIndicator');
+    if (bs.turn === 'me'){
+      ti.textContent = '🎯 SEU TURNO';
+      ti.style.color = '#2ecc71';
+      ti.style.background = 'rgba(46,204,113,0.15)';
+    } else {
+      ti.textContent = '⏳ TURNO DO BOT';
+      ti.style.color = '#e74c3c';
+      ti.style.background = 'rgba(231,76,60,0.15)';
+    }
+  }
+
+  function nextActive(deck, used, cur){
+    for (let i=1;i<=deck.length;i++){
+      const c = (cur+i)%deck.length;
+      if (!used.includes(c)) return c;
+    }
+    return null;
+  }
+
+  function checkEnd(){
+    if (bs.botHp <= 0) { finish(true); return true; }
+    if (bs.myHp <= 0) { finish(false); return true; }
+    return false;
+  }
+
+  function finish(victory){
+    if (bs.finished) return;
+    bs.finished = true;
+    if (victory){
+      log('🏆 <b style="color:gold;">VITÓRIA!</b>', '#2ecc71');
+      try {
+        if (window.__addBattleWin) window.__addBattleWin();
+      } catch(e){}
+    } else {
+      log('💀 <b style="color:#e74c3c;">DERROTA!</b> Tente novamente.', '#e74c3c');
+    }
+    // Disable buttons
+    document.querySelectorAll('#bbActions button').forEach(b=>{ b.disabled=true; b.style.opacity='0.4'; });
+  }
+
+  function endTurn(){
+    if (bs.finished) return;
+    if (bs.turn === 'me'){
+      bs.turn = 'bot';
+      bs.botEnergy = Math.min(5, bs.botEnergy+1);
+      render();
+      setTimeout(botPlay, 900);
+    } else {
+      bs.turn = 'me';
+      bs.myEnergy = Math.min(5, bs.myEnergy+1);
+      log('🔁 Seu turno (+1⚡)', '#bbb');
+      render();
+    }
+  }
+
+  function myAttack(special){
+    if (!bs || bs.finished || bs.turn !== 'me') { log('⏳ Aguarde seu turno!', '#888'); return; }
+    const cost = special ? 2 : 1;
+    if (bs.myEnergy < cost) { log('⚡ Energia insuficiente!', '#e67e22'); return; }
+    const mc = bs.myDeck[bs.myActive], bc = bs.botDeck[bs.botActive];
+    if (!mc || !bc) return;
+    let dmg;
+    if (special) dmg = (mc.atk||0) * 2;
+    else dmg = Math.max(1, (mc.atk||0) - (bc.def||0));
+    bs.botHp = Math.max(0, bs.botHp - dmg);
+    bs.myEnergy -= cost;
+    if (!bs.myUsed.includes(bs.myActive)) bs.myUsed.push(bs.myActive);
+    log((special?'✨ <b>Especial</b>: ':'⚔️ Você ataca com <b>')+mc.name+(special?' causa <b>':'</b> e causa <b>')+dmg+' de dano</b>!', '#2ecc71');
+    const next = nextActive(bs.myDeck, bs.myUsed, bs.myActive);
+    if (next != null) bs.myActive = next;
+    render();
+    if (checkEnd()) return;
+    if (next == null) { finish(false); return; }
+    setTimeout(endTurn, 600);
+  }
+
+  function botPlay(){
+    if (!bs || bs.finished) return;
+    // IA simples: especial se tiver energia, senão atacar; troca se carta atual é fraca contra defesa
+    const bc = bs.botDeck[bs.botActive], mc = bs.myDeck[bs.myActive];
+    if (!bc || !mc){ finish(true); return; }
+    let action;
+    if (bs.botEnergy >= 2 && Math.random() < 0.45) action = 'special';
+    else action = 'attack';
+    const cost = action==='special' ? 2 : 1;
+    if (bs.botEnergy < cost){ log('🤖 Bot passa o turno.', '#bbb'); setTimeout(endTurn, 500); return; }
+    let dmg;
+    if (action==='special') dmg = (bc.atk||0) * 2;
+    else dmg = Math.max(1, (bc.atk||0) - (mc.def||0));
+    bs.myHp = Math.max(0, bs.myHp - dmg);
+    bs.botEnergy -= cost;
+    if (!bs.botUsed.includes(bs.botActive)) bs.botUsed.push(bs.botActive);
+    log((action==='special'?'🤖✨ Bot usa <b>especial</b> de ':'🤖⚔️ Bot ataca com <b>')+bc.name+'</b> causando <b>'+dmg+' de dano</b>!', '#e74c3c');
+    const next = nextActive(bs.botDeck, bs.botUsed, bs.botActive);
+    if (next != null) bs.botActive = next;
+    render();
+    if (checkEnd()) return;
+    if (next == null) { finish(true); return; }
+    setTimeout(endTurn, 700);
+  }
+
+  function mySwitch(){
+    if (!bs || bs.finished || bs.turn !== 'me') return;
+    const next = nextActive(bs.myDeck, bs.myUsed, bs.myActive);
+    if (next == null){ log('Sem cartas disponíveis!', '#e67e22'); return; }
+    bs.myActive = next;
+    log('🔄 Você trocou para <b>'+bs.myDeck[next].name+'</b>', '#3498db');
+    render();
+    setTimeout(endTurn, 400);
+  }
+
+  function myPass(){
+    if (!bs || bs.finished || bs.turn !== 'me') return;
+    log('⏭️ Você passou o turno.', '#888');
+    endTurn();
+  }
+
+  window.startBotBattle = function(){
+    try { if (typeof playClick==='function') playClick(); } catch(e){}
+    try { if (typeof closeMultiplayer==='function') closeMultiplayer(); } catch(e){}
+    const lvl = (window.__getPlayerLevel ? window.__getPlayerLevel() : 1);
+    const playerDeck = buildPlayerDeck();
+    const botDeck = buildBotDeck(playerDeck, lvl);
+    // HP escala com nível: 30 + (lvl-1)*3 (ambos iguais — batalha justa)
+    const hp = 30 + Math.min(50, (lvl-1)*3);
+    bs = {
+      myName: (typeof playerName!=='undefined' && playerName) ? playerName : 'Você',
+      myLvl: lvl, botLvl: lvl,
+      myDeck: playerDeck, botDeck: botDeck,
+      myActive: 0, botActive: 0,
+      myUsed: [], botUsed: [],
+      myHp: hp, myMaxHp: hp, botHp: hp, botMaxHp: hp,
+      myEnergy: 3, botEnergy: 3,
+      turn: Math.random()<0.5 ? 'me' : 'bot',
+      finished: false
+    };
+    document.getElementById('botBattleScreen').style.display = 'block';
+    document.getElementById('bbLog').innerHTML = '';
+    document.querySelectorAll('#bbActions button').forEach(b=>{ b.disabled=false; b.style.opacity='1'; });
+    log('⚔️ Batalha iniciada! Nível '+lvl+' • HP '+hp, 'gold');
+    log('🎯 '+(bs.turn==='me'?'Você começa!':'Bot começa!'), '#bbb');
+    render();
+    if (bs.turn === 'bot') setTimeout(botPlay, 900);
+  };
+
+  window.closeBotBattle = function(){
+    document.getElementById('botBattleScreen').style.display = 'none';
+    bs = null;
+  };
+
+  window.bbAttack = function(){ myAttack(false); };
+  window.bbSpecial = function(){ myAttack(true); };
+  window.bbSwitch = mySwitch;
+  window.bbPass = myPass;
+})();
+</script>
 
 </body>
 </html>
