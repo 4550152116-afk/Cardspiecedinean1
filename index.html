@@ -1,3 +1,22 @@
+
+<script>
+async function forceClearBrowserCache() {
+    try {
+        if ('caches' in window) {
+            const names = await caches.keys();
+            await Promise.all(names.map(name => caches.delete(name)));
+        }
+    } catch(e) {}
+
+    try {
+        if ('serviceWorker' in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map(r => r.unregister()));
+        }
+    } catch(e) {}
+}
+</script>
+
 <meta name='viewport' content='width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover'/><script>// Playables SDK v1.0.0
 // Game lifecycle bridge: rAF-based game-ready detection + event communication
 (function() {
@@ -291,7 +310,7 @@
         color:#fff;
         margin:0;
         background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') no-repeat center center fixed;
-        background-size: 120% auto;
+        background-size: cover;
         min-height: 100vh; 
         overflow-x: hidden;
         padding-bottom: 250px; 
@@ -1625,64 +1644,96 @@
     .admin-status.err { color: #e74c3c; }
 
 
-/* --- RESOLUCAO FIXA ESTILO CLASH ROYALE --- */
-:root {
-    --fixed-game-width: 720px;
-    --fixed-game-height: 1465px;
-}
-html {
-    width: 100%;
-    height: 100%;
-    overflow: hidden !important;
-    background: #05070e !important;
-    zoom: 1 !important;
-}
-body {
-    position: fixed !important;
-    inset: 0 !important;
-    width: 100% !important;
-    height: 100% !important;
-    min-height: 0 !important;
-    margin: 0 !important;
-    padding: 0 !important;
-    overflow: hidden !important;
-    display: flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    background: #05070e !important;
-    overscroll-behavior: none !important;
-}
-#fixedGameViewport {
-    width: var(--fixed-game-width);
-    height: var(--fixed-game-height);
-    min-width: var(--fixed-game-width);
-    min-height: var(--fixed-game-height);
-    position: relative;
-    overflow-x: hidden;
-    overflow-y: auto;
-    transform-origin: center center;
-    background: url('https://images.unsplash.com/photo-1507525428034-b723cf961d3e?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80') no-repeat center center;
-    background-size: cover;
-    color: #fff;
-    font-family: Arial, sans-serif;
-    text-align: center;
-    box-shadow: 0 0 0 9999px #05070e;
-    isolation: isolate;
-    scrollbar-width: none;
-    -webkit-overflow-scrolling: touch;
-}
-#fixedGameViewport::-webkit-scrollbar {
-    display: none;
-}
-#fixedGameViewport .page {
-    min-height: calc(var(--fixed-game-height) - 250px);
-}
-
 </style>
 
+
+<style id="updatingOverlayStyle">
+#updatingScreen{position:fixed;inset:0;z-index:2147483647;display:none;align-items:center;justify-content:center;flex-direction:column;background:linear-gradient(135deg,#0a0e27 0%,#1a1a3e 50%,#2d1b4e 100%);color:#fff;font-family:-apple-system,Segoe UI,Roboto,sans-serif;text-align:center;padding:20px;}
+#updatingScreen.show{display:flex;}
+#updatingScreen .us-logo{font-size:64px;margin-bottom:20px;animation:usPulse 1.5s ease-in-out infinite;}
+#updatingScreen .us-title{font-size:26px;font-weight:800;margin:8px 0;letter-spacing:.5px;text-shadow:0 2px 12px rgba(231,76,60,.5);}
+#updatingScreen .us-sub{font-size:14px;opacity:.8;margin-bottom:24px;max-width:320px;line-height:1.5;}
+#updatingScreen .us-spinner{width:64px;height:64px;border:5px solid rgba(255,255,255,.15);border-top-color:#e74c3c;border-radius:50%;animation:usSpin 1s linear infinite;margin:10px 0;}
+#updatingScreen .us-bar{width:min(320px,80vw);height:8px;background:rgba(255,255,255,.12);border-radius:4px;overflow:hidden;margin-top:18px;}
+#updatingScreen .us-bar-fill{height:100%;width:30%;background:linear-gradient(90deg,#e74c3c,#f39c12,#e74c3c);background-size:200% 100%;animation:usBar 1.4s linear infinite;border-radius:4px;}
+#updatingScreen .us-attempt{margin-top:14px;font-size:12px;opacity:.65;}
+@keyframes usSpin{to{transform:rotate(360deg);}}
+@keyframes usPulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+@keyframes usBar{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+</style>
+
+<script>
+(function(){
+  try{
+    var flag = sessionStorage.getItem('gameUpdating');
+    if(!flag) return;
+    var data; try{ data = JSON.parse(flag); }catch(e){ data = {target:flag, attempts:0, max:6}; }
+    data.attempts = (data.attempts||0) + 1;
+    var max = data.max || 6;
+
+    function showOverlay(){
+      var el = document.getElementById('updatingScreen');
+      if(!el){ setTimeout(showOverlay, 30); return; }
+      el.classList.add('show');
+      var a = document.getElementById('updatingAttempt');
+      if(a) a.textContent = 'Tentativa ' + data.attempts + ' de ' + max + ' — versão alvo v' + (data.target||'?');
+    }
+    if(document.readyState==='loading'){
+      document.addEventListener('DOMContentLoaded', showOverlay);
+    } else { showOverlay(); }
+
+    // Decide se versão alvo já foi atingida
+    function currentVersion(){ try{ return localStorage.getItem('gameVersion'); }catch(e){ return null; } }
+
+    function finish(){
+      try{ sessionStorage.removeItem('gameUpdating'); }catch(e){}
+      var el = document.getElementById('updatingScreen');
+      if(el) el.classList.remove('show');
+    }
+
+    // Após o app inicializar, dá um tempo para o Firebase responder com a versão atual.
+    // Se a versão atual >= alvo, terminamos. Caso contrário, reinicia até max tentativas.
+    setTimeout(function(){
+      var cur = currentVersion();
+      var target = data.target;
+      var ok = false;
+      try{
+        if(cur && target){
+          ok = (parseFloat(cur) >= parseFloat(target)) || (String(cur) === String(target));
+        }
+      }catch(e){}
+
+      if(ok || data.attempts >= max){
+        finish();
+        return;
+      }
+
+      // Salva estado atualizado e reinicia
+      try{ sessionStorage.setItem('gameUpdating', JSON.stringify(data)); }catch(e){}
+      try{
+        if(typeof forceClearBrowserCache === 'function'){
+          forceClearBrowserCache().then(function(){ window.location.reload(); }).catch(function(){ window.location.reload(); });
+        } else {
+          window.location.reload();
+        }
+      }catch(e){ window.location.reload(); }
+    }, 4500);
+  }catch(e){ try{ sessionStorage.removeItem('gameUpdating'); }catch(_){ } }
+})();
+</script>
 </head>
 
 <body>
+
+<div id="updatingScreen" role="dialog" aria-live="polite">
+  <div class="us-logo">🚀</div>
+  <div class="us-title">Atualizando o jogo...</div>
+  <div class="us-sub">Estamos baixando a nova versão. O jogo vai reiniciar algumas vezes — aguarde, isso é normal.</div>
+  <div class="us-spinner"></div>
+  <div class="us-bar"><div class="us-bar-fill"></div></div>
+  <div class="us-attempt" id="updatingAttempt">Preparando...</div>
+</div>
+
 
 <!-- Banner de Nova Atualizacao (visivel para todos quando houver update) -->
 <div id="updateBanner">
@@ -2449,18 +2500,41 @@ function applyGameUpdate() {
     const version = banner ? banner.dataset.version : null;
     const url = banner ? banner.dataset.url : '';
 
-    if (version) {
-        localStorage.setItem('gameVersion', version);
+    try { if (typeof saveGame === 'function') saveGame(); } catch(e) {}
+
+    // Se tiver URL externa, vai direto pra ela
+    if (url && url.trim() !== '') {
+        try { localStorage.setItem('gameVersion', version || ''); } catch(e) {}
+        window.location.href = url;
+        return;
     }
 
-    if (url && url.trim() !== '') {
-        // Se tiver URL, redireciona
-        window.location.href = url;
-    } else {
-        // Senão, apenas recarrega a página para pegar a versão mais recente
-        window.location.reload(true);
-    }
+    // Mostra tela de atualização
+    var screen = document.getElementById('updatingScreen');
+    if (screen) screen.classList.add('show');
+    var att = document.getElementById('updatingAttempt');
+    if (att) att.textContent = 'Iniciando atualização para v' + (version||'?') + '...';
+
+    // Grava flag de atualização em andamento. O boot script no topo cuidará dos reloads.
+    try {
+        sessionStorage.setItem('gameUpdating', JSON.stringify({
+            target: version || '',
+            attempts: 0,
+            max: 6
+        }));
+    } catch(e) {}
+
+    setTimeout(function(){
+        try {
+            if (typeof forceClearBrowserCache === 'function') {
+                forceClearBrowserCache().then(function(){ window.location.reload(); }).catch(function(){ window.location.reload(); });
+            } else {
+                window.location.reload();
+            }
+        } catch(e) { window.location.reload(); }
+    }, 800);
 }
+
 
 // Hook no openSettings para verificar status de admin
 const _origOpenSettings = openSettings;
@@ -3243,17 +3317,22 @@ function setupOnlinePresence() {
     inviteListener = window.firebaseOnValue(inviteRef, async (snapshot) => {
         const invite = snapshot.val();
         if (invite && invite.roomCode && !currentRoom) {
+            if (window.__processingBattleInvite === invite.roomCode) return;
+            window.__processingBattleInvite = invite.roomCode;
+            setTimeout(()=>{ if (window.__processingBattleInvite === invite.roomCode) window.__processingBattleInvite = null; }, 15000);
             playClick();
+            try { showBattleInviteToast(invite.from); } catch(e){}
             gameConfirm(`⚔️ ${invite.from} te desafiou para uma batalha!\n\nAceitar desafio?`, async function(){
-                await joinRoomByCode(invite.roomCode);
+                try { await joinRoomByCode(invite.roomCode); } catch(e){ console.error(e); }
+                try { window.firebaseRemove(inviteRef); } catch(e){}
             }, function(){
                 try {
                     if (invite.roomCode) {
                         window.firebaseUpdate(window.firebaseRef(window.firebaseDB, 'rooms/' + invite.roomCode), { status: 'declined', declinedBy: playerName });
                     }
                 } catch(e){}
+                try { window.firebaseRemove(inviteRef); } catch(e){}
             });
-            window.firebaseRemove(inviteRef);
         }
     });
 }
@@ -3366,21 +3445,50 @@ async function challengePlayer(targetName) {
 }
 
 async function joinRoomByCode(code) {
+    try {
+        const mpScreen = document.getElementById('multiplayerScreen');
+        if (mpScreen && mpScreen.style.display !== 'block') {
+            try { openMultiplayer(); } catch(e){ mpScreen.style.display = 'block'; }
+        }
+    } catch(e){}
     const roomRef = window.firebaseRef(window.firebaseDB, 'rooms/' + code);
-    const snapshot = await window.firebaseGet(roomRef);
-    if (!snapshot.exists()) { alert('Convite expirado!'); return; }
+    let snapshot = null;
+    // Retry: a sala pode ainda não ter propagado quando o convite chegou.
+    for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+            snapshot = await window.firebaseGet(roomRef);
+            if (snapshot && snapshot.exists()) break;
+        } catch(e) { snapshot = null; }
+        await new Promise(r=>setTimeout(r, 400 + attempt*200));
+    }
+    if (!snapshot || !snapshot.exists()) { alert('Convite expirado! Tente novamente.'); return; }
     currentRoom = code;
     isHost = false;
     battleEndHandled = false;
     const room = snapshot.val();
-    await window.firebaseUpdate(roomRef, {
-        'guest/name': playerName, 'guest/hp': 30, 'guest/energy': 3, 'guest/ready': false,
-        status: 'waiting'
-    });
+    try {
+        await window.firebaseUpdate(roomRef, {
+            'guest/name': playerName, 'guest/hp': 30, 'guest/energy': 3, 'guest/ready': false,
+            status: 'waiting'
+        });
+    } catch(e){ console.warn('update guest failed', e); }
     _showLobby(code, room.host.name, playerName, '✓ Conectado', '#27ae60');
     document.getElementById('player2Slot').classList.add('ready');
     listenToRoom(code);
     playClick();
+    setTimeout(() => {
+        try {
+            const mp = document.getElementById('multiplayerScreen');
+            const lb = document.getElementById('lobbyScreen');
+            if (currentRoom === code) {
+                if (mp && mp.style.display !== 'block') mp.style.display = 'block';
+                if (lb && lb.style.display !== 'block') {
+                    document.getElementById('mpMenu').style.display = 'none';
+                    lb.style.display = 'block';
+                }
+            }
+        } catch(e){}
+    }, 800);
 }
 
 function openMultiplayer() {
@@ -3493,6 +3601,16 @@ function listenToRoom(code) {
                 const lobby = document.getElementById('lobbyScreen');
                 if (lobby && lobby.style.display !== 'block') {
                     hideWaitingInviteToast('battle');
+                    // Garante que a tela de multiplayer esteja aberta antes de mostrar o lobby
+                    try {
+                        const mpScreen = document.getElementById('multiplayerScreen');
+                        if (mpScreen && mpScreen.style.display !== 'block') {
+                            mpScreen.style.display = 'block';
+                            document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                            const gn = document.getElementById('gameNav'); if (gn) gn.style.display = 'none';
+                            const gn2 = document.getElementById('gameNav2'); if (gn2) gn2.style.display = 'none';
+                        }
+                    } catch(e){}
                     _showLobby(code, room.host.name, room.guest.name, '✓ Conectado', '#27ae60');
                     document.getElementById('player2Slot').classList.add('ready');
                     try { addLog(`${room.guest.name} aceitou o desafio!`, 'turn'); } catch(e){}
@@ -4358,8 +4476,23 @@ async function _handleCardTransfer(isVictory) {
 }
 
 function _handleDisconnect(msg) {
-    _showBattleResult(false, null, 'disconnect', msg, '');
-    setTimeout(() => { if (currentRoom) leaveRoom(); }, 4000);
+    // Notificação pequena no topo (sem overlay gigante)
+    try {
+        const oldT = document.getElementById('disconnectMiniToast');
+        if (oldT) oldT.remove();
+        const t = document.createElement('div');
+        t.id = 'disconnectMiniToast';
+        t.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,0.94);color:#fff;border:1px solid #e67e22;border-left:4px solid #e67e22;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,0.55);max-width:92%;display:flex;align-items:center;gap:8px;animation:dctFade 0.25s ease;';
+        t.innerHTML = '<span style="font-size:16px;">🔌</span><span>' + (msg || 'O oponente desconectou.') + '</span>';
+        if (!document.getElementById('dctFadeStyle')) {
+            const st = document.createElement('style'); st.id='dctFadeStyle';
+            st.textContent = '@keyframes dctFade{from{opacity:0;transform:translate(-50%,-12px);}to{opacity:1;transform:translate(-50%,0);}}';
+            document.head.appendChild(st);
+        }
+        document.body.appendChild(t);
+        setTimeout(() => { try { t.remove(); } catch(e){} }, 2500);
+    } catch(e) {}
+    setTimeout(() => { if (currentRoom) leaveRoom(); }, 1200);
 }
 
 // ============================================================
@@ -4554,21 +4687,64 @@ async function proposeTrade(targetName) {
 }
 
 async function acceptTradeInvite() {
+    // Aceito vindo do popup global (IIFE escreve em window.pendingTradeInvite)
+    if (!pendingTradeInvite && window.pendingTradeInvite) pendingTradeInvite = window.pendingTradeInvite;
     if (!pendingTradeInvite) return;
     playClick();
     const { from, roomCode } = pendingTradeInvite;
     tradeRoom = roomCode; tradeIsHost = false; tradePartnerName = from;
 
+    // Garante que a tela de trade esteja realmente aberta antes de prosseguir
+    try {
+        const ts = document.getElementById('tradeScreen');
+        if (ts && !ts.classList.contains('trade-active')) {
+            try { openTrade(); } catch(e) {
+                document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+                ts.classList.add('trade-active');
+            }
+        }
+    } catch(e){}
+
     const roomRef = window.firebaseRef(window.firebaseDB, 'tradeRooms/' + roomCode);
-    await window.firebaseUpdate(roomRef, { status: 'active', 'guest/name': playerName });
+    // Garante que a sala existe (pode ainda não ter propagado) antes do update
+    let _trSnap = null;
+    for (let attempt = 0; attempt < 6; attempt++) {
+        try {
+            _trSnap = await window.firebaseGet(roomRef);
+            if (_trSnap && _trSnap.exists()) break;
+        } catch(e) { _trSnap = null; }
+        await new Promise(r=>setTimeout(r, 400 + attempt*200));
+    }
+    if (!_trSnap || !_trSnap.exists()) { alert('Convite de trade expirado! Tente novamente.'); tradeRoom = null; tradeIsHost = false; tradePartnerName = null; return; }
+    let _updOk = false;
+    for (let attempt = 0; attempt < 4 && !_updOk; attempt++) {
+        try { await window.firebaseUpdate(roomRef, { status: 'active', 'guest/name': playerName }); _updOk = true; }
+        catch(e) { await new Promise(r=>setTimeout(r, 350 + attempt*200)); }
+    }
+    if (!_updOk) { alert('Falha ao entrar no trade. Tente novamente.'); return; }
 
     // Remove o convite
     window.firebaseRemove(window.firebaseRef(window.firebaseDB, 'tradeInvites/' + playerName));
     document.getElementById('tradeIncomingSection').style.display = 'none';
+    try { window.pendingTradeInvite = null; } catch(e){}
+    pendingTradeInvite = null;
 
     _showTradeActiveSection();
     _listenToTradeRoom(roomCode);
     _updateTradeStatusText('Trade ativo! Selecione as cartas para oferecer.');
+    // Verificação tardia: garante que a tela ativa do trade apareceu
+    setTimeout(() => {
+        try {
+            if (tradeRoom === roomCode) {
+                const ts = document.getElementById('tradeScreen');
+                if (ts && !ts.classList.contains('trade-active')) ts.classList.add('trade-active');
+                const sec = document.getElementById('tradeActiveSection');
+                const menu = document.getElementById('tradeMenuSection');
+                if (menu) menu.style.display = 'none';
+                if (sec && sec.style.display !== 'flex') sec.style.display = 'flex';
+            }
+        } catch(e){}
+    }, 900);
 }
 
 function declineTradeInvite() {
@@ -5274,22 +5450,26 @@ window.alert = showCustomAlert;
     _inviteL=window.firebaseOnValue(iRef, async (snap)=>{
       const invite=snap.val();
       if(invite && invite.roomCode && !currentRoom){
+        if (window.__processingBattleInvite === invite.roomCode) return;
+        window.__processingBattleInvite = invite.roomCode;
+        setTimeout(()=>{ if (window.__processingBattleInvite === invite.roomCode) window.__processingBattleInvite = null; }, 15000);
         try{ playClick(); }catch(e){}
+        try { showBattleInviteToast(invite.from); } catch(e){}
         gameConfirm(`⚔️ ${invite.from} te desafiou para uma batalha!\n\nAceitar desafio?`, async function(){
           try{
-            if(document.getElementById('multiplayerScreen').style.display==='none'){
-              openMultiplayer();
-            }
+            const mp = document.getElementById('multiplayerScreen');
+            if(mp && mp.style.display!=='block'){ try{ openMultiplayer(); }catch(e){} }
           }catch(e){}
-          try{ await joinRoomByCode(invite.roomCode); }catch(e){}
+          try{ await joinRoomByCode(invite.roomCode); }catch(e){ console.error(e); }
+          try{ window.firebaseRemove(iRef); }catch(e){}
         }, function(){
           try {
             if (invite.roomCode) {
               window.firebaseUpdate(window.firebaseRef(window.firebaseDB, 'rooms/' + invite.roomCode), { status: 'declined', declinedBy: playerName });
             }
           } catch(e){}
+          try{ window.firebaseRemove(iRef); }catch(e){}
         });
-        try{ window.firebaseRemove(iRef); }catch(e){}
       }
     });
 
@@ -5298,16 +5478,22 @@ window.alert = showCustomAlert;
     window._globalTradeInviteL=window.firebaseOnValue(tRef, async (snap)=>{
       const invite=snap.val();
       if(invite && invite.roomCode && !window.tradeRoom){
+        if (window.__processingTradeInvite === invite.roomCode) return;
+        window.__processingTradeInvite = invite.roomCode;
+        setTimeout(()=>{ if (window.__processingTradeInvite === invite.roomCode) window.__processingTradeInvite = null; }, 15000);
         try{ playClick(); }catch(e){}
         try{ if(navigator.vibrate) navigator.vibrate([120,60,120]); }catch(e){}
         window.pendingTradeInvite = invite;
+        try { pendingTradeInvite = invite; } catch(e){}
+        try { window.showTradeInviteToast && window.showTradeInviteToast(invite.from); } catch(e){}
         gameConfirm(`🔄 ${invite.from} quer fazer um TRADE com você!\n\nAceitar trade?`, async function(){
           try{
             const ts=document.getElementById('tradeScreen');
             if(ts && !ts.classList.contains('trade-active')){
               try{ openTrade(); }catch(e){}
             }
-            setTimeout(()=>{ try{ acceptTradeInvite(); }catch(e){ console.error(e); } }, 250);
+            // espera UI abrir; depois aceita
+            setTimeout(()=>{ try{ acceptTradeInvite(); }catch(e){ console.error(e); } }, 400);
           }catch(e){ console.error(e); }
         }, function(){
           try{
@@ -6139,46 +6325,6 @@ function removeFriendFromModal(){
 </script>
 
 
-<script>
-(function(){
-    'use strict';
-    var GAME_WIDTH = 720;
-    var GAME_HEIGHT = 1280;
-
-    function installFixedGameViewport(){
-        if (document.getElementById('fixedGameViewport')) return;
-
-        var frame = document.createElement('div');
-        frame.id = 'fixedGameViewport';
-
-        var nodes = Array.prototype.slice.call(document.body.childNodes);
-        nodes.forEach(function(node){ frame.appendChild(node); });
-        document.body.appendChild(frame);
-
-        function fit(){
-            var viewport = window.visualViewport;
-            var availableWidth = viewport ? viewport.width : (window.innerWidth || document.documentElement.clientWidth);
-            var availableHeight = viewport ? viewport.height : (window.innerHeight || document.documentElement.clientHeight);
-            var scale = Math.min(availableWidth / GAME_WIDTH, availableHeight / GAME_HEIGHT);
-            frame.style.transform = 'scale(' + scale + ')';
-        }
-
-        fit();
-        window.addEventListener('resize', fit, { passive: true });
-        window.addEventListener('orientationchange', fit, { passive: true });
-        if (window.visualViewport) {
-            window.visualViewport.addEventListener('resize', fit, { passive: true });
-            window.visualViewport.addEventListener('scroll', fit, { passive: true });
-        }
-    }
-
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', installFixedGameViewport, { once: true });
-    } else {
-        installFixedGameViewport();
-    }
-})();
-</script>
 
 </body>
 </html>
