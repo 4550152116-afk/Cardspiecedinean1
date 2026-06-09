@@ -2101,22 +2101,27 @@ async function forceClearBrowserCache() {
         <div class="credits">Dinean J.A.Alonso</div>
     </div>
 
-    <div id="playerNameDisplay" onclick="openPlayerInfoModal()" style="cursor:pointer;"><span id="displayAvatar" style="margin-right:4px;">🏴‍☠️</span><span id="displayName">Pirata</span><span id="playerLevelBadge" title="Nível da conta" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);vertical-align:middle;">1</span><span id="xpRewardBadge" onclick="event.stopPropagation();openPlayerInfoModal();" title="Recompensa de XP disponível" style="display:none;margin-left:6px;background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;font-size:11px;font-weight:900;padding:2px 8px;border-radius:12px;border:2px solid gold;vertical-align:middle;animation:pulse 1.5s infinite;">💰<span id="xpRewardBadgeAmt">0</span></span></div>
+    <div id="playerNameDisplay" onclick="openPlayerInfoModal()" style="cursor:pointer;"><span id="displayAvatar" style="margin-right:4px;">🏴‍☠️</span><span id="displayName">Pirata</span><span id="displayEquippedTitle" style="display:none;margin-left:6px;color:#ffd700;font-size:11px;font-weight:bold;text-shadow:0 0 6px rgba(255,215,0,0.5);"></span><span id="playerLevelBadge" title="Nível da conta" style="display:inline-flex;align-items:center;justify-content:center;margin-left:8px;width:22px;height:22px;border-radius:50%;background:linear-gradient(45deg,#f1c40f,#e67e22);color:#1a1a1a;font-size:11px;font-weight:900;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.5);vertical-align:middle;">1</span><span id="xpRewardBadge" onclick="event.stopPropagation();openPlayerInfoModal();" title="Recompensa de XP disponível" style="display:none;margin-left:6px;background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;font-size:11px;font-weight:900;padding:2px 8px;border-radius:12px;border:2px solid gold;vertical-align:middle;animation:pulse 1.5s infinite;">💰<span id="xpRewardBadgeAmt">0</span></span></div>
     <div id="playerInfoModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:20px;" onclick="if(event.target===this)closePlayerInfoModal()">
       <div style="background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid gold;border-radius:18px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(255,215,0,0.3);">
         <div id="piAvatar" style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
         <h2 style="color:gold;margin:0 0 6px;font-size:24px;" id="piName">Pirata</h2>
+        <div id="piEquippedTitle" style="display:none;color:#ffd700;font-size:15px;font-weight:bold;margin:-2px 0 6px;text-shadow:0 0 8px rgba(255,215,0,0.5);"></div>
         <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;color:#f1c40f;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;margin-bottom:18px;">⭐ Nível <span id="piLevel">1</span></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="piPacks" style="color:#3498db;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="piCards" style="color:#2ecc71;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏱️ Tempo jogado</span><strong id="piTime" style="color:#e67e22;">0min</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>⏳ Próximo nível em</span><strong id="piNext" style="color:#9b59b6;">0s</strong></div>
-        <div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(230,126,34,0.15));border:1px solid #f1c40f;border-radius:12px;padding:14px;margin-bottom:10px;color:#fff;font-size:15px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span>💰 Recompensa de XP</span><strong id="piPendingMoney" style="color:#f1c40f;">0</strong></div>
-          <button id="piCollectBtn" onclick="collectXpReward()" style="background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;width:100%;">🎁 Coletar</button>
-        </div>
-        <button onclick="closePlayerInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
-      </div>
+          <div id="piXpRewardBox" style="display:none;background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(230,126,34,0.15));border:1px solid #f1c40f;border-radius:12px;padding:14px;margin-bottom:10px;color:#fff;font-size:15px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;"><span>💰 Recompensa de XP</span><strong id="piPendingMoney" style="color:#f1c40f;">0</strong></div>
+            <button id="piCollectBtn" onclick="collectXpReward()" style="background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;border:none;border-radius:8px;padding:10px 18px;font-size:14px;font-weight:bold;cursor:pointer;width:100%;">🎁 Coletar</button>
+          </div>
+         <div id="piTabs" style="display:flex;justify-content:center;margin:6px 0 10px;">
+           <button id="piTabTitles" onclick="toggleTitlesPane()" style="background:linear-gradient(45deg,#f39c12,#e67e22);color:#fff;border:none;border-radius:8px;padding:8px 28px;font-weight:bold;cursor:pointer;">🏆 Títulos</button>
+         </div>
+         <div id="piTitlesPane" style="display:none;max-height:320px;overflow-y:auto;text-align:left;margin-bottom:10px;"></div>
+         <button onclick="closePlayerInfoModal()" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:10px;padding:12px 28px;font-size:15px;font-weight:bold;cursor:pointer;width:100%;">Fechar</button>
+       </div>
     </div>
     <nav id="gameNav" style="margin-top: 14px; display:none; position: relative; z-index: 3000;">
         <button id="btnGame" class="nav-btn active" onclick="showPage('game')">🎮 Jogo</button>
@@ -2194,6 +2199,7 @@ async function forceClearBrowserCache() {
       <div style="background:linear-gradient(160deg,#1a1a2e,#0f0f1e);border:2px solid gold;border-radius:18px;padding:28px;max-width:380px;width:100%;text-align:center;box-shadow:0 10px 40px rgba(255,215,0,0.3);">
         <div style="font-size:48px;margin-bottom:8px;">🏴‍☠️</div>
         <h2 style="color:gold;margin:0 0 6px;font-size:24px;" id="fiName">Pirata</h2>
+        <div id="fiEquippedTitle" style="display:none;color:#ffd700;font-size:15px;font-weight:bold;margin:-2px 0 6px;text-shadow:0 0 8px rgba(255,215,0,0.5);"></div>
         <div style="display:inline-flex;align-items:center;gap:6px;background:rgba(241,196,15,0.15);border:1px solid #f1c40f;color:#f1c40f;padding:4px 12px;border-radius:20px;font-size:13px;font-weight:bold;margin-bottom:18px;">⭐ Nível <span id="fiLevel">1</span></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>📦 Pacotes abertos</span><strong id="fiPacks" style="color:#3498db;">0</strong></div>
         <div style="background:rgba(0,0,0,0.4);border-radius:12px;padding:14px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;color:#fff;font-size:15px;"><span>🃏 Cartas encontradas</span><strong id="fiCards" style="color:#2ecc71;">0</strong></div>
@@ -3168,6 +3174,7 @@ function calculateLuckMultiplier() {
         if (chars.length > 0 && chars.every(c => unlockedCards.has(c.name))) { luckMultiplier *= 1.5; }
     });
     if (Date.now() < boostEndTime) luckMultiplier *= 2; 
+    try { if (window.__getWorldLuckBonus) luckMultiplier *= window.__getWorldLuckBonus(); } catch(e){}
     return luckMultiplier;
 }
 
@@ -3331,24 +3338,59 @@ function renderWorlds(){
 function isWorldComplete(world){
     var list = allCharacters.filter(function(c){ return c.world === world; });
     if(list.length === 0) return false;
+    var owned = {};
+    for(var k in inventory){
+        if(inventory[k] && inventory[k].name && (inventory[k].count|0) > 0){
+            owned[inventory[k].name] = true;
+        }
+    }
     for(var i=0;i<list.length;i++){
-        if(!inventory[list[i].name] || inventory[list[i].name] <= 0) return false;
+        if(!owned[list[i].name]) return false;
     }
     return true;
 }
+var WORLD_ORDER = ['onepiece','demonslayer'];
+var WORLD_LABEL = { onepiece: '🏴‍☠️ One Piece', demonslayer: '⚔️ Demon Slayer' };
+function isWorldUnlocked(w){
+    var idx = WORLD_ORDER.indexOf(w);
+    if(idx <= 0) return true;
+    for(var i=0;i<idx;i++){ if(!isWorldComplete(WORLD_ORDER[i])) return false; }
+    return true;
+}
+function showConfirmModal(message, onOk){
+    var ov = document.getElementById('__confirmModal');
+    if(!ov){
+        ov = document.createElement('div');
+        ov.id = '__confirmModal';
+        ov.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:99999;';
+        ov.innerHTML = '<div style="background:linear-gradient(160deg,#222,#111);border:2px solid #ffd700;border-radius:14px;padding:24px;max-width:340px;width:88%;text-align:center;color:#fff;box-shadow:0 10px 30px rgba(0,0,0,.7);">'
+            +'<div id="__confirmMsg" style="font-size:16px;margin-bottom:18px;line-height:1.4;"></div>'
+            +'<div style="display:flex;gap:10px;justify-content:center;">'
+            +'<button id="__confirmCancel" style="flex:1;padding:10px 14px;border:none;border-radius:8px;background:#555;color:#fff;font-weight:bold;cursor:pointer;">Cancelar</button>'
+            +'<button id="__confirmOk" style="flex:1;padding:10px 14px;border:none;border-radius:8px;background:#ffd700;color:#000;font-weight:bold;cursor:pointer;">OK</button>'
+            +'</div></div>';
+        document.body.appendChild(ov);
+    }
+    document.getElementById('__confirmMsg').textContent = message;
+    ov.style.display = 'flex';
+    document.getElementById('__confirmCancel').onclick = function(){ ov.style.display='none'; };
+    document.getElementById('__confirmOk').onclick = function(){ ov.style.display='none'; try{ onOk(); }catch(e){} };
+}
 function pickWorld(w){
     if(w === currentWorld){ showPage('index'); return; }
-    if(!isWorldComplete(currentWorld)){
-        var curLabel = currentWorld==='onepiece' ? '🏴‍☠️ One Piece' : '⚔️ Demon Slayer';
-        alert('🔒 Mundo bloqueado!\nVocê precisa completar a Index de ' + curLabel + ' antes de trocar de mundo.');
+    if(!isWorldUnlocked(w)){
+        var prev = WORLD_ORDER[WORLD_ORDER.indexOf(w)-1];
+        var prevLabel = WORLD_LABEL[prev] || prev;
+        alert('🔒 Mundo bloqueado!\nVocê precisa completar a Index de ' + prevLabel + ' antes de desbloquear este mundo.');
         return;
     }
-    var label = w==='onepiece' ? '🏴‍☠️ One Piece' : '⚔️ Demon Slayer';
-    if(!confirm('Deseja realmente trocar para o mundo ' + label + '?')) return;
-    try{ playClick(); }catch(e){}
-    setWorld(w);
-    renderWorlds();
-    showPage('index');
+    var label = WORLD_LABEL[w] || w;
+    showConfirmModal('Você realmente quer trocar para o mundo ' + label + '?', function(){
+        try{ playClick(); }catch(e){}
+        setWorld(w);
+        renderWorlds();
+        showPage('index');
+    });
 }
 
 function lockIndexCard(name, cost) {
@@ -3424,8 +3466,9 @@ function updateMyProfile(){
         const time = (window.__getPlayerPlayTime ? window.__getPlayerPlayTime() : 0);
         const packs = (typeof stats !== 'undefined' && stats && stats.packs) ? stats.packs : 0;
         const cards = (typeof unlockedCards !== 'undefined' && unlockedCards && unlockedCards.size) ? unlockedCards.size : 0;
+        const equippedTitle = localStorage.getItem('equippedTitle') || '';
         window.firebaseSet(window.firebaseRef(window.firebaseDB, 'profiles/' + nameKey(playerName)), {
-            name: playerName, level, time, packs, cards, lastSeen: Date.now()
+            name: playerName, level, time, packs, cards, equippedTitle, lastSeen: Date.now()
         });
         window.firebaseSet(window.firebaseRef(window.firebaseDB, 'registeredNames/' + nameKey(playerName)), { name: playerName, createdAt: Date.now() });
     } catch(e){}
@@ -4844,11 +4887,11 @@ function _handleDisconnect(msg) {
         if (oldT) oldT.remove();
         const t = document.createElement('div');
         t.id = 'disconnectMiniToast';
-        t.style.cssText = 'position:fixed;top:14px;left:50%;transform:translateX(-50%);background:rgba(20,20,20,0.94);color:#fff;border:1px solid #e67e22;border-left:4px solid #e67e22;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,0.55);max-width:92%;display:flex;align-items:center;gap:8px;animation:dctFade 0.25s ease;';
+        t.style.cssText = 'position:fixed;top:24px;right:16px;left:auto;background:rgba(20,20,20,0.94);color:#fff;border:1px solid #e67e22;border-left:4px solid #e67e22;border-radius:10px;padding:10px 16px;font-size:13px;font-weight:600;z-index:10000;box-shadow:0 6px 18px rgba(0,0,0,0.55);max-width:88vw;display:flex;align-items:center;gap:8px;animation:dctFade 0.25s ease;';
         t.innerHTML = '<span style="font-size:16px;">🔌</span><span>' + (msg || 'O oponente desconectou.') + '</span>';
         if (!document.getElementById('dctFadeStyle')) {
             const st = document.createElement('style'); st.id='dctFadeStyle';
-            st.textContent = '@keyframes dctFade{from{opacity:0;transform:translate(-50%,-12px);}to{opacity:1;transform:translate(-50%,0);}}';
+            st.textContent = '@keyframes dctFade{from{opacity:0;transform:translateX(20px);}to{opacity:1;transform:translateX(0);}}';
             document.head.appendChild(st);
         }
         document.body.appendChild(t);
@@ -6373,7 +6416,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function showLevelUpToast(lvl, gained){
     try{
       const t = document.createElement('div');
-      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;border:2px solid gold;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;';
+      t.style.cssText = 'position:fixed;top:24px;right:16px;background:linear-gradient(135deg,#f39c12,#e67e22);color:#fff;border:2px solid gold;border-radius:12px;padding:12px 20px;font-size:15px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;max-width:88vw;';
       t.innerHTML = '⬆️ NÍVEL '+lvl+'!<br><span style="font-size:13px;color:#fff8dc;">+'+gained.toLocaleString()+' 💰 disponível no perfil</span>';
       document.body.appendChild(t);
       setTimeout(()=>{ try{t.remove();}catch(e){} }, 3500);
@@ -6395,7 +6438,7 @@ document.addEventListener('DOMContentLoaded', function(){
     updateBadge();
     try {
       const t = document.createElement('div');
-      t.style.cssText = 'position:fixed;top:80px;left:50%;transform:translateX(-50%);background:linear-gradient(135deg,#27ae60,#16a085);color:#fff;border:2px solid gold;border-radius:12px;padding:14px 22px;font-size:16px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;';
+      t.style.cssText = 'position:fixed;top:24px;right:16px;background:linear-gradient(135deg,#27ae60,#16a085);color:#fff;border:2px solid gold;border-radius:12px;padding:14px 22px;font-size:16px;font-weight:bold;z-index:99999;box-shadow:0 8px 24px rgba(0,0,0,0.6);text-align:center;max-width:88vw;';
       t.innerHTML = '🏆 VITÓRIA!<br><span style="font-size:14px;font-weight:normal;">+1 Nível • +$'+reward.toLocaleString()+'</span><br><span style="font-size:12px;color:#ffd700;">Nível atual: '+lvl+'</span>';
       document.body.appendChild(t);
       setTimeout(()=>{ try{t.remove();}catch(e){} }, 4000);
@@ -6450,7 +6493,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (m && m.style.display === 'flex' && typeof refreshPlayerInfoModal === 'function') refreshPlayerInfoModal();
   }, 1000);
 
-  document.addEventListener('DOMContentLoaded', function(){ processLevelUps(); updateBadge(); });
+  document.addEventListener('DOMContentLoaded', function(){ processLevelUps(); updateBadge(); try{ if(typeof refreshPlayerInfoModal==='function') refreshPlayerInfoModal(); }catch(e){} });
   setTimeout(function(){ processLevelUps(); updateBadge(); }, 1500);
 })();
 
@@ -6474,11 +6517,34 @@ function refreshPlayerInfoModal(){
   set('piNext', nextStr);
   set('piPendingMoney', pending.toLocaleString());
   const btn = document.getElementById('piCollectBtn');
+  const xpBox = document.getElementById('piXpRewardBox');
+  if (xpBox) xpBox.style.display = (pending > 0) ? 'block' : 'none';
   if (btn){
     btn.disabled = pending <= 0;
     btn.style.opacity = pending <= 0 ? '0.5' : '1';
     btn.style.cursor = pending <= 0 ? 'not-allowed' : 'pointer';
   }
+  // Atualiza título equipado no modal próprio
+  try {
+    const eqId = localStorage.getItem('equippedTitle') || '';
+    const eqEl = document.getElementById('piEquippedTitle');
+    if (eqEl){
+      if (eqId && Array.isArray(window.__TITLES)){
+        const t = window.__TITLES.find(function(x){ return x.id === eqId; });
+        if (t){ eqEl.textContent = t.name; eqEl.style.display = 'block'; }
+        else { eqEl.style.display = 'none'; }
+      } else { eqEl.style.display = 'none'; }
+    }
+    // Atualiza também o badge ao lado do nome no topo
+    const topEl = document.getElementById('displayEquippedTitle');
+    if (topEl){
+      if (eqId && Array.isArray(window.__TITLES)){
+        const t = window.__TITLES.find(function(x){ return x.id === eqId; });
+        if (t){ topEl.textContent = t.name; topEl.style.display = 'inline'; }
+        else { topEl.style.display = 'none'; }
+      } else { topEl.style.display = 'none'; }
+    }
+  } catch(e){}
 }
 function openPlayerInfoModal(){
   const m = document.getElementById('playerInfoModal');
@@ -6768,6 +6834,7 @@ async function openFriendInfo(name){
     document.getElementById('fiPacks').textContent = '...';
     document.getElementById('fiCards').textContent = '...';
     document.getElementById('fiTime').textContent = '...';
+    var _fiEq = document.getElementById('fiEquippedTitle'); if(_fiEq) _fiEq.style.display = 'none';
     modal.style.display = 'flex';
     playClick && playClick();
     if(window.firebaseReady && window.firebaseDB){
@@ -6782,6 +6849,17 @@ async function openFriendInfo(name){
                 document.getElementById('fiPacks').textContent = p.packs || 0;
                 document.getElementById('fiCards').textContent = p.cards || 0;
                 document.getElementById('fiTime').textContent = timeStr;
+                // Exibe título equipado do amigo
+                try {
+                    const eqEl = document.getElementById('fiEquippedTitle');
+                    if (eqEl){
+                        if (p.equippedTitle && Array.isArray(window.__TITLES)){
+                            const t = window.__TITLES.find(function(x){ return x.id === p.equippedTitle; });
+                            if (t){ eqEl.textContent = t.name; eqEl.style.display = 'block'; }
+                            else { eqEl.style.display = 'none'; }
+                        } else { eqEl.style.display = 'none'; }
+                    }
+                } catch(e){}
             } else {
                 document.getElementById('fiLevel').textContent = '?';
                 document.getElementById('fiPacks').textContent = '?';
@@ -6854,8 +6932,9 @@ function removeFriendFromModal(){
     }catch(err){}
   }
 
-  document.addEventListener('touchstart', onStart, {passive:true});
-  document.addEventListener('touchend', onEnd, {passive:true});
+  /* Swipe entre lobbies desativado — use o botão > para alternar */
+  /* document.addEventListener('touchstart', onStart, {passive:true}); */
+  /* document.addEventListener('touchend', onEnd, {passive:true}); */
 })();
 </script>
 
@@ -7728,6 +7807,210 @@ console.log('✅ Sistema de Avatar + Tripulação + Chat + ações carregado!');
   window.bbSpecial = function(){ myAttack(true); };
   window.bbSwitch = mySwitch;
   window.bbPass = myPass;
+})();
+</script>
+
+<script>
+/* ============ Recompensas de Mundo + Sistema de Títulos ============ */
+(function(){
+  const KEY_WR = 'worldRewards';
+  const KEY_TITLES = 'unlockedTitles';
+
+  function getWR(){ try { return JSON.parse(localStorage.getItem(KEY_WR)||'{}'); } catch(e){ return {}; } }
+  function setWR(o){ try { localStorage.setItem(KEY_WR, JSON.stringify(o)); } catch(e){} }
+  function getUnlockedTitles(){ try { return JSON.parse(localStorage.getItem(KEY_TITLES)||'[]'); } catch(e){ return []; } }
+  function setUnlockedTitles(a){ try { localStorage.setItem(KEY_TITLES, JSON.stringify(a)); } catch(e){} }
+
+  // Multiplicador de sorte permanente (2x por mundo completado e recompensado)
+  window.__getWorldLuckBonus = function(){
+    const wr = getWR();
+    let mult = 1;
+    Object.keys(wr).forEach(function(w){ if(wr[w]) mult *= 2; });
+    return mult;
+  };
+
+  function showRewardToast(html, bg){
+    try{
+      const t = document.createElement('div');
+      t.style.cssText = 'position:fixed;top:24px;right:16px;background:'+(bg||'linear-gradient(135deg,#8e44ad,#9b59b6)')+';color:#fff;border:2px solid gold;border-radius:14px;padding:16px 22px;font-size:15px;font-weight:bold;z-index:99999;box-shadow:0 8px 28px rgba(0,0,0,.7);text-align:center;max-width:340px;';
+      t.innerHTML = html;
+      document.body.appendChild(t);
+      setTimeout(()=>{ try{t.remove();}catch(e){} }, 4500);
+    }catch(e){}
+  }
+
+  // Checa recompensas de mundo (chama sempre que coleção mudar)
+  window.__checkWorldRewards = function(){
+    try{
+      if (typeof isWorldComplete !== 'function') return;
+      const wr = getWR();
+      const worlds = (typeof WORLD_ORDER !== 'undefined') ? WORLD_ORDER : ['onepiece','demonslayer'];
+      worlds.forEach(function(w){
+        if (!wr[w] && isWorldComplete(w)){
+          wr[w] = true;
+          const label = (typeof WORLD_LABEL!=='undefined' && WORLD_LABEL[w]) ? WORLD_LABEL[w] : w;
+          showRewardToast('🎉 INDEX COMPLETA!<br><span style="font-size:13px;">'+label+'</span><br><span style="font-size:14px;color:#ffd700;">🍀 +2x Sorte Permanente!</span>');
+        }
+      });
+      setWR(wr);
+    }catch(e){}
+  };
+
+  // ============ Definição de Títulos ============
+  // type: 'packs','battles','mythics','legendaries','world','cards'
+  const TITLES = [
+    // Mundo
+    { id:'world_onepiece', name:'🏴‍☠️ Rei dos Piratas', desc:'Complete a index de One Piece', type:'world', world:'onepiece' },
+    { id:'world_demonslayer', name:'⚔️ Caçador de Demônios', desc:'Complete a index de Demon Slayer', type:'world', world:'demonslayer' },
+    // Pacotes
+    { id:'packs_50', name:'📦 Iniciante', desc:'Abra 50 pacotes', type:'packs', goal:50 },
+    { id:'packs_250', name:'📦 Colecionador', desc:'Abra 250 pacotes', type:'packs', goal:250 },
+    { id:'packs_500', name:'📦 Veterano', desc:'Abra 500 pacotes', type:'packs', goal:500 },
+    { id:'packs_1000', name:'📦 Mestre dos Pacotes', desc:'Abra 1.000 pacotes', type:'packs', goal:1000 },
+    { id:'packs_2500', name:'📦 Lenda dos Pacotes', desc:'Abra 2.500 pacotes', type:'packs', goal:2500 },
+    { id:'packs_5000', name:'📦 Deus dos Pacotes', desc:'Abra 5.000 pacotes', type:'packs', goal:5000 },
+    // Batalhas (usa playerBonusLevel = vitórias)
+    { id:'bat_1', name:'⚔️ Primeira Vitória', desc:'Vença 1 batalha', type:'battles', goal:1 },
+    { id:'bat_10', name:'⚔️ Guerreiro', desc:'Vença 10 batalhas', type:'battles', goal:10 },
+    { id:'bat_50', name:'⚔️ Gladiador', desc:'Vença 50 batalhas', type:'battles', goal:50 },
+    { id:'bat_100', name:'⚔️ Comandante', desc:'Vença 100 batalhas', type:'battles', goal:100 },
+    { id:'bat_500', name:'⚔️ Imperador da Batalha', desc:'Vença 500 batalhas', type:'battles', goal:500 },
+    // Míticas
+    { id:'myth_1', name:'🌌 Tocou o Mítico', desc:'Encontre 1 carta mítica', type:'mythics', goal:1 },
+    { id:'myth_5', name:'🌌 Caçador de Míticas', desc:'Encontre 5 cartas míticas', type:'mythics', goal:5 },
+    { id:'myth_10', name:'🌌 Senhor das Míticas', desc:'Encontre 10 cartas míticas', type:'mythics', goal:10 },
+    { id:'myth_25', name:'🌌 Lenda Mística', desc:'Encontre 25 cartas míticas', type:'mythics', goal:25 },
+    // Lendárias
+    { id:'leg_5', name:'🔥 Caçador de Lendas', desc:'Encontre 5 cartas lendárias', type:'legendaries', goal:5 },
+    { id:'leg_25', name:'🔥 Lenda Viva', desc:'Encontre 25 cartas lendárias', type:'legendaries', goal:25 },
+    { id:'leg_100', name:'🔥 Lenda Eterna', desc:'Encontre 100 cartas lendárias', type:'legendaries', goal:100 },
+    // Cartas únicas descobertas
+    { id:'card_10', name:'🃏 Estreante', desc:'Descubra 10 cartas diferentes', type:'cards', goal:10 },
+    { id:'card_50', name:'🃏 Colecionador', desc:'Descubra 50 cartas diferentes', type:'cards', goal:50 },
+    { id:'card_100', name:'🃏 Enciclopédia', desc:'Descubra 100 cartas diferentes', type:'cards', goal:100 },
+  ];
+  window.__TITLES = TITLES;
+
+  function getProgress(t){
+    try{
+      if (t.type === 'packs') return (typeof stats!=='undefined'&&stats)?(stats.packs|0):0;
+      if (t.type === 'battles') return parseInt(localStorage.getItem('playerBonusLevel')||'0',10)|0;
+      if (t.type === 'mythics') return (typeof stats!=='undefined'&&stats)?(stats.mythics|0):0;
+      if (t.type === 'legendaries') return (typeof stats!=='undefined'&&stats)?(stats.legendaries|0):0;
+      if (t.type === 'cards') return (typeof unlockedCards!=='undefined'&&unlockedCards)?unlockedCards.size:0;
+      if (t.type === 'world') return (typeof isWorldComplete==='function' && isWorldComplete(t.world)) ? 1 : 0;
+    }catch(e){}
+    return 0;
+  }
+  function isDone(t){
+    if (t.type === 'world') return getProgress(t) >= 1;
+    return getProgress(t) >= (t.goal|0);
+  }
+
+  window.__checkTitles = function(){
+    const cur = new Set(getUnlockedTitles());
+    let newly = [];
+    TITLES.forEach(function(t){
+      if (!cur.has(t.id) && isDone(t)){
+        cur.add(t.id); newly.push(t);
+      }
+    });
+    if (newly.length){
+      setUnlockedTitles(Array.from(cur));
+      newly.forEach(function(t){
+        showRewardToast('🏆 NOVO TÍTULO!<br><span style="font-size:14px;color:#ffd700;">'+t.name+'</span><br><span style="font-size:12px;color:#fff8dc;">'+t.desc+'</span>','linear-gradient(135deg,#c0392b,#e74c3c)');
+      });
+    }
+  };
+
+  window.renderTitles = function(){
+    const pane = document.getElementById('piTitlesPane');
+    if (!pane) return;
+    const unlocked = new Set(getUnlockedTitles());
+    // Auto-check
+    window.__checkTitles();
+    const unlocked2 = new Set(getUnlockedTitles());
+    const total = TITLES.length;
+    const done = TITLES.filter(function(t){ return unlocked2.has(t.id); }).length;
+    let html = '<div style="text-align:center;color:#f1c40f;font-weight:bold;margin-bottom:10px;">'+done+' / '+total+' títulos desbloqueados</div>';
+    TITLES.forEach(function(t){
+      const u = unlocked2.has(t.id);
+      const prog = getProgress(t);
+      const goal = (t.type==='world')?1:(t.goal|0);
+      const pct = Math.min(100, Math.floor((prog/goal)*100));
+      const bg = u ? 'linear-gradient(135deg,rgba(241,196,15,0.25),rgba(230,126,34,0.2));border:1px solid #f1c40f;' : 'rgba(0,0,0,0.35);border:1px solid #444;';
+      const color = u ? '#ffd700' : '#aaa';
+      const badge = u ? '<span style="color:#2ecc71;font-weight:bold;">✓</span>' : '<span style="color:#888;">🔒</span>';
+      const progTxt = t.type==='world' ? (u?'Completo':'Incompleto') : (prog+' / '+goal);
+      var equippedId = localStorage.getItem('equippedTitle') || '';
+      var isEquipped = equippedId === t.id;
+      var equipBtn = '';
+      if (u){
+        if (isEquipped){
+          equipBtn = '<button onclick="unequipTitle()" style="background:linear-gradient(45deg,#c0392b,#e74c3c);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;margin-top:6px;">✓ Equipado (clique para remover)</button>';
+        } else {
+          equipBtn = '<button onclick="equipTitle(\''+t.id+'\')" style="background:linear-gradient(45deg,#27ae60,#2ecc71);color:#fff;border:none;border-radius:6px;padding:5px 12px;font-size:11px;font-weight:bold;cursor:pointer;margin-top:6px;">Equipar</button>';
+        }
+      }
+      html += '<div style="background:'+bg+'border-radius:10px;padding:10px 12px;margin-bottom:8px;">'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;font-weight:bold;color:'+color+';font-size:17px;">'
+            + '<span>'+t.name+'</span>'+badge+'</div>'
+            + '<div style="font-size:13px;color:#bbb;margin:4px 0 6px;">'+t.desc+'</div>'
+            + '<div style="background:rgba(0,0,0,.4);border-radius:6px;height:8px;overflow:hidden;"><div style="background:linear-gradient(90deg,#f39c12,#e67e22);width:'+pct+'%;height:100%;"></div></div>'
+            + '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:3px;"><span style="font-size:11px;color:#999;">'+progTxt+'</span>'+equipBtn+'</div>'
+            + '</div>';
+    });
+    pane.innerHTML = html;
+  };
+
+  // Mantém stats sempre visíveis e só alterna o painel de títulos
+  window.switchPlayerTab = function(tab){
+    const titlesPane = document.getElementById('piTitlesPane');
+    if (titlesPane) titlesPane.style.display = (tab==='titles')?'block':'none';
+    if (tab==='titles') window.renderTitles();
+  };
+  window.toggleTitlesPane = function(){
+    const titlesPane = document.getElementById('piTitlesPane');
+    if (!titlesPane) return;
+    const open = titlesPane.style.display !== 'block';
+    titlesPane.style.display = open ? 'block' : 'none';
+    if (open) window.renderTitles();
+  };
+  window.equipTitle = function(id){
+    try {
+      localStorage.setItem('equippedTitle', id);
+      if (typeof updateMyProfile === 'function') updateMyProfile();
+      if (typeof refreshPlayerInfoModal === 'function') refreshPlayerInfoModal();
+      window.renderTitles();
+    } catch(e){}
+  };
+  window.unequipTitle = function(){
+    try {
+      localStorage.removeItem('equippedTitle');
+      if (typeof updateMyProfile === 'function') updateMyProfile();
+      if (typeof refreshPlayerInfoModal === 'function') refreshPlayerInfoModal();
+      window.renderTitles();
+    } catch(e){}
+  };
+
+  // Hooks: ao abrir modal, garantir tab stats por padrão
+  const _origOpen = window.openPlayerInfoModal;
+  window.openPlayerInfoModal = function(){
+    if (typeof _origOpen === 'function') _origOpen();
+    // Garante que o painel de títulos começa fechado
+    var tp = document.getElementById('piTitlesPane');
+    if (tp) tp.style.display = 'none';
+    try { window.__checkWorldRewards(); window.__checkTitles(); } catch(e){}
+  };
+
+  // Verificações periódicas
+  setInterval(function(){
+    try { window.__checkWorldRewards(); window.__checkTitles(); } catch(e){}
+  }, 3000);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    setTimeout(function(){ try { window.__checkWorldRewards(); window.__checkTitles(); } catch(e){} }, 1500);
+  });
 })();
 </script>
 
